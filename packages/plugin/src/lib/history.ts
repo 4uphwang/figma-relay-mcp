@@ -46,14 +46,15 @@ export function collectNodeIds(params: unknown, result: unknown): string[] {
   if (typeof p.id === 'string' && NODE_ID.test(p.id)) ids.add(p.id);
   if (Array.isArray(p.ids)) for (const id of p.ids) if (typeof id === 'string' && NODE_ID.test(id)) ids.add(id);
 
-  const walk = (v: unknown, depth: number) => {
+  // 문자열은 배열 안에 있을 때만 노드 id로 본다(fillTemplate의 nodeIds). getStatus의 currentPage.id 같은 값은 넣지 않는다.
+  const walk = (v: unknown, depth: number, inArray = false) => {
     if (ids.size >= NODE_ID_LIMIT || depth > 6) return;
     if (Array.isArray(v)) {
-      for (const x of v) walk(x, depth + 1);
+      for (const x of v) walk(x, depth + 1, true);
       return;
     }
     if (typeof v === 'string') {
-      if (depth > 0 && NODE_ID.test(v)) ids.add(v); // nodeIds: string[]
+      if (inArray && NODE_ID.test(v)) ids.add(v);
       return;
     }
     if (!isRecord(v)) return;
@@ -90,10 +91,18 @@ export function finishEntry(
     ...entry,
     ms: at - entry.at,
     ok: response.ok,
-    nodeIds: response.ok ? collectNodeIds(params, response.result) : entry.nodeIds,
-    error: response.ok ? undefined : { code: response.error.code, message: response.error.message },
+    nodeIds: response.ok ? collectNodeIds(params, response.result) : [], // 실패한 요청의 대상은 없을 수 있다
+    error: response.ok ? undefined : { code: response.error.code, message: withoutStack(response.error.message) },
   };
 }
+
+// execute 오류에 붙는 "    at …" 줄(플러그인 내부 위치)은 기록에서 뺀다
+export const withoutStack = (message: string) =>
+  message
+    .split('\n')
+    .filter((l) => !/^\s+at /.test(l))
+    .join('\n')
+    .trim();
 
 // 저장된 값을 믿지 않는다(예전 형식, 손상)
 export function loadHistory(raw: unknown): HistoryEntry[] {

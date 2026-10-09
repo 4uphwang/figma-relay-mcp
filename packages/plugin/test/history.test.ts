@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { collectNodeIds, finishEntry, loadHistory, startEntry, summarize, toolName } from '../src/lib/history';
+import { collectNodeIds, finishEntry, loadHistory, startEntry, summarize, toolName, withoutStack } from '../src/lib/history';
 
 describe('toolName', () => {
   it('shows MCP tool names', () => {
@@ -35,8 +35,9 @@ describe('collectNodeIds', () => {
     };
     expect(collectNodeIds({ code: '' }, result)).toEqual(['1006:61', 'I5:6;7:8']);
   });
-  it('ignores a bare string result', () => {
+  it('ignores a bare string result and id-like fields that are not nodes', () => {
     expect(collectNodeIds({ code: '' }, '1:2')).toEqual([]);
+    expect(collectNodeIds({}, { fileName: 'F', currentPage: { id: '0:1', name: 'Page 1' } })).toEqual([]);
   });
 });
 
@@ -48,10 +49,17 @@ describe('entries', () => {
     const ok = finishEntry(e, { code: '' }, { ok: true, result: { id: '2:3', name: 'Frame', type: 'FRAME' } }, 1400);
     expect(ok).toMatchObject({ ms: 400, ok: true, nodeIds: ['2:3'] });
     const bad = finishEntry(e, {}, { ok: false, error: { code: 'EXEC_ERROR', message: 'boom', hint: 'h' } }, 1100);
-    expect(bad).toMatchObject({ ok: false, error: { code: 'EXEC_ERROR', message: 'boom' } });
+    expect(bad).toMatchObject({ ok: false, error: { code: 'EXEC_ERROR', message: 'boom' }, nodeIds: [] });
   });
   it('truncates long code', () => {
     expect(startEntry('r', 'execute', { code: 'x'.repeat(3000) }, 0).code).toHaveLength(2002);
+  });
+});
+
+describe('withoutStack', () => {
+  it('drops stack frames but keeps the message', () => {
+    expect(withoutStack('boom\n    at <anonymous> (<input>:5:16)\n    at execute (PLUGIN_7_SOURCE:66:33)')).toBe('boom');
+    expect(withoutStack('line one\nline two')).toBe('line one\nline two');
   });
 });
 

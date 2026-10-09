@@ -79,10 +79,17 @@ function renderHistory() {
       item.classList.toggle('expandable', expandable);
       item.classList.toggle('open', open);
 
+      // 첫 줄: 도구·세션·시간, 둘째 줄: 요약·보기 (300px 창에 한 줄로 넣으면 요약이 사라진다)
       const top = el('div', 'entry-top');
       top.append(el('span', 'method', toolName(e.method)));
       if (e.client) top.append(el('span', 'client', e.client));
-      top.append(el('span', 'summary', e.summary));
+      const meta = el('span', 'meta', metaText(e));
+      meta.dataset.entry = e.id;
+      top.append(meta);
+      item.append(top);
+
+      const sub = el('div', 'entry-sub');
+      sub.append(el('span', 'summary', e.summary));
       if (e.nodeIds.length) {
         const view = el('button', 'link', '보기');
         view.type = 'button';
@@ -91,12 +98,9 @@ function renderHistory() {
           ev.stopPropagation();
           toMain({ type: 'focusNodes', ids: e.nodeIds });
         };
-        top.append(view);
+        sub.append(view);
       }
-      const meta = el('span', 'meta', metaText(e));
-      meta.dataset.entry = e.id;
-      top.append(meta);
-      item.append(top);
+      if (e.summary || e.nodeIds.length) item.append(sub);
 
       if (open) {
         if (e.error) item.append(el('div', 'entry-error', `${e.error.code} · ${e.error.message}`));

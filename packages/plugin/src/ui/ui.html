@@ -37,8 +37,8 @@
       .btn.primary { border: 0; background: var(--figma-color-bg-brand); color: var(--figma-color-text-onbrand); width: 100%; }
 
       .history-head { display: flex; align-items: center; padding-bottom: 4px; font-size: 11px; font-weight: 600; color: var(--figma-color-text-secondary); }
-      ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 260px; overflow-y: auto; }
-      .entry { padding: 6px 8px; border-radius: 5px; display: flex; flex-direction: column; gap: 6px; --mark: var(--figma-color-text-success); }
+      ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; max-height: 280px; overflow-x: hidden; overflow-y: auto; }
+      .entry { padding: 6px 8px; border-radius: 5px; display: flex; flex-direction: column; gap: 4px; min-width: 0; --mark: var(--figma-color-text-success); }
       .entry[data-ok='false'] { --mark: var(--figma-color-text-danger); }
       .entry[data-ok='pending'] { --mark: var(--figma-color-text-tertiary); }
       .entry.expandable { cursor: pointer; }
@@ -48,9 +48,10 @@
       .entry-top::before { content: ''; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--mark); }
       .method { font-family: ui-monospace, 'SF Mono', Menlo, monospace; }
       .entry[data-ok='false'] .method, .entry-error { color: var(--figma-color-text-danger); }
-      .client { flex: none; max-width: 80px; overflow: hidden; text-overflow: ellipsis; padding: 0 5px; border-radius: 3px; font-size: 10px; line-height: 15px; color: var(--figma-color-text-secondary); background: var(--figma-color-bg-tertiary); }
+      .client { flex: 0 1 auto; min-width: 24px; max-width: 110px; overflow: hidden; text-overflow: ellipsis; padding: 0 5px; border-radius: 3px; font-size: 10px; line-height: 15px; color: var(--figma-color-text-secondary); background: var(--figma-color-bg-tertiary); }
+      .entry-sub { display: flex; align-items: center; gap: 8px; padding-left: 14px; font-size: 11px; white-space: nowrap; }
       .summary { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--figma-color-text-secondary); }
-      .meta { color: var(--figma-color-text-secondary); }
+      .meta { margin-left: auto; flex: none; color: var(--figma-color-text-secondary); }
       .entry .link { margin-left: 0; }
       .entry-error { font-size: 11px; line-height: 16px; word-break: break-word; }
       .entry pre { margin: 0; padding: 6px 8px; border-radius: 4px; border: 1px solid var(--figma-color-border); background: var(--figma-color-bg); font: 10px/14px ui-monospace, 'SF Mono', Menlo, monospace; white-space: pre-wrap; word-break: break-all; max-height: 160px; overflow-y: auto; cursor: text; }
