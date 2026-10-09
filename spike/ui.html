@@ -1,0 +1,23 @@
+<!doctype html>
+<html><body style="font:12px monospace">
+<script>
+const out = (s) => document.body.insertAdjacentHTML('beforeend', '<pre>' + s + '</pre>');
+onmessage = (e) => {
+  const m = e.data.pluginMessage;
+  if (!m || m.type !== 'results') return;
+  out(JSON.stringify(m.r, null, 1));
+  for (const url of ['ws://127.0.0.1:38451', 'ws://localhost:38451']) {
+    try {
+      const ws = new WebSocket(url);
+      ws.binaryType = 'arraybuffer';
+      ws.onopen = () => {
+        ws.send(JSON.stringify({ url, ...m.r }));
+        ws.send(new Uint8Array([1, 2, 3]));
+        out('open ' + url);
+      };
+      ws.onerror = () => out('error ' + url);
+    } catch (err) { out('throw ' + url + ' ' + err); }
+  }
+};
+</script>
+</body></html>
