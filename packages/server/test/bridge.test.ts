@@ -170,4 +170,12 @@ describe('Bridge', () => {
     expect((bridge as any).pending.size).toBe(0);
     await new Promise((r) => setTimeout(r, 80)); // would surface an unhandled rejection if the timer leaked
   });
+
+  it('records other listen errors as IO_ERROR and rejects call()', async () => {
+    const b = new Bridge({ token: TOKEN });
+    expect(await codeOf(b.start(0, '256.0.0.1'))).toBe('IO_ERROR');
+    expect(b.startError?.code).toBe('IO_ERROR');
+    expect(() => b.ensureStarted()).toThrow();
+    expect(await codeOf(b.call('getStatus', {}))).toBe('IO_ERROR');
+  });
 });

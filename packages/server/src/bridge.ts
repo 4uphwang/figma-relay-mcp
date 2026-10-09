@@ -48,6 +48,7 @@ const portInUseError = (port: number | string) =>
 
 export class Bridge {
   portInUse = false;
+  startError?: ToolError;
   private wss?: WebSocketServer;
   private port: number | string = '?';
   private live = new Map<string, Session>();
@@ -68,10 +69,11 @@ export class Bridge {
       wss.once('error', (e: NodeJS.ErrnoException) => {
         if (e.code === 'EADDRINUSE') {
           this.portInUse = true;
-          reject(portInUseError(port));
+          this.startError = portInUseError(port);
         } else {
-          reject(e);
+          this.startError = new ToolError('IO_ERROR', `Figma 연결 서버를 시작하지 못했습니다: ${e.message}`);
         }
+        reject(this.startError);
       });
       wss.on('connection', (ws) => this.accept(ws));
     });
@@ -89,12 +91,16 @@ export class Bridge {
       .map(({ sessionId, fileName, connectedAt }) => ({ sessionId, fileName, connectedAt }));
   }
 
+  ensureStarted(): void {
+    if (this.startError) throw this.startError;
+  }
+
   async call<M extends MethodName>(
     method: M,
     params: MethodMap[M]['params'],
     opts: CallOptions = {},
   ): Promise<CallResult<MethodMap[M]['result']>> {
-    if (this.portInUse) throw portInUseError(this.port);
+    this.ensureStarted();
     const session = this.pick(opts.sessionId);
     const id = randomUUID();
     const timeoutMs = opts.timeoutMs ?? 30_000;

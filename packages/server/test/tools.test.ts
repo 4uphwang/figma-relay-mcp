@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ToolError } from '../src/errors';
 import { fakeBridge, toolsWith } from './helpers';
 
 describe('read tools', () => {
@@ -57,5 +58,20 @@ describe('read tools', () => {
     const { bridge } = fakeBridge({ execute: (p) => ({ result: { echoed: p.code } }) });
     const out = await toolsWith(bridge)('execute', { code: 'return 1' });
     expect(out).toEqual({ kind: 'json', value: { echoed: 'return 1' } });
+  });
+});
+
+describe('list_files', () => {
+  it('rejects PORT_IN_USE when the bridge failed to start', async () => {
+    const err = new ToolError('PORT_IN_USE', '포트 사용 중');
+    const { bridge } = fakeBridge({}, undefined, err);
+    await expect(toolsWith(bridge)('list_files', {})).rejects.toMatchObject({ code: 'PORT_IN_USE' });
+  });
+});
+
+describe('screenshot', () => {
+  it('throws IO_ERROR when no PNG arrives', async () => {
+    const { bridge } = fakeBridge({ screenshot: () => ({ result: {} }) });
+    await expect(toolsWith(bridge)('screenshot', { id: '1:1' })).rejects.toMatchObject({ code: 'IO_ERROR' });
   });
 });

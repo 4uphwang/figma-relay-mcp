@@ -10,7 +10,7 @@ import { mergePdfs } from './pdf';
 export type ToolOutput = { kind: 'json'; value: unknown } | { kind: 'image'; png: Uint8Array; meta: unknown };
 
 export interface ToolDeps {
-  bridge: Pick<Bridge, 'call' | 'sessions'>;
+  bridge: Pick<Bridge, 'call' | 'sessions' | 'ensureStarted'>;
   home: string;
   now: () => Date;
   loadImage: (src: string) => Promise<Uint8Array>;
@@ -62,6 +62,7 @@ export function buildTools(deps: ToolDeps): ToolDef[] {
       description: '플러그인이 연결된 Figma 파일 목록(세션 ID, 파일 이름, 현재 페이지)을 돌려준다.',
       inputSchema: z.object({}),
       handler: async () => {
+        bridge.ensureStarted();
         const files = await Promise.all(
           bridge.sessions().map(async (s) => {
             try {
@@ -107,7 +108,7 @@ export function buildTools(deps: ToolDeps): ToolDef[] {
       handler: async (a: { id: string; scale: number; sessionId?: string }) => {
         const { result, binaries } = await bridge.call('screenshot', { id: a.id, scale: a.scale }, { sessionId: a.sessionId });
         const png = binaries[0];
-        if (!png) throw new Error('플러그인이 PNG를 보내지 않았습니다');
+        if (!png) throw new ToolError('IO_ERROR', '플러그인이 PNG를 보내지 않았습니다', '다시 시도하세요');
         return { kind: 'image', png, meta: result };
       },
     },

@@ -5,10 +5,13 @@ import { buildTools, type ToolDeps } from '../src/tools';
 
 export interface Recorded { method: string; params: unknown; opts: CallOptions }
 
-export function fakeBridge(replies: Record<string, (params: any, opts: CallOptions) => { result: unknown; binaries?: Uint8Array[] }>, sessions: SessionInfo[] = [{ sessionId: 's1', fileName: 'File', connectedAt: 1 }]) {
+export function fakeBridge(replies: Record<string, (params: any, opts: CallOptions) => { result: unknown; binaries?: Uint8Array[] }>, sessions: SessionInfo[] = [{ sessionId: 's1', fileName: 'File', connectedAt: 1 }], startError?: ToolError) {
   const calls: Recorded[] = [];
   const bridge: ToolDeps['bridge'] = {
     sessions: () => sessions,
+    ensureStarted: () => {
+      if (startError) throw startError;
+    },
     call: (async (method: string, params: unknown, opts: CallOptions = {}) => {
       calls.push({ method, params, opts });
       const reply = replies[method];
