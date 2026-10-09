@@ -1,24 +1,51 @@
+import { spawn } from 'node:child_process';
+import { openSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { DEFAULT_PORT } from '@figma-mcp/protocol';
 import { McpServer } from '@modelcontextprotocol/server';
 import { StdioServerTransport } from '@modelcontextprotocol/server/stdio';
-import { Bridge } from './bridge';
+import { Hub } from './hub';
+import { HubClient } from './hubClient';
 import { loadImage } from './images';
 import { errorResult, toCallToolResult } from './result';
 import { loadOrCreateToken } from './token';
 import { buildTools } from './tools';
 
-async function main() {
-  const home = homedir();
-  const token = await loadOrCreateToken(join(home, '.figma-mcp'));
-  const bridge = new Bridge({ token });
-  bridge
-    .start(DEFAULT_PORT)
-    .then((port) => console.error(`[figma-mcp] ws://127.0.0.1:${port} 대기 중`))
-    .catch((e: Error) => console.error(`[figma-mcp] WebSocket 시작 실패: ${e.message}`));
+declare const __BUILD__: number;
+const BUILD = typeof __BUILD__ === 'number' ? __BUILD__ : 0;
+const HUB_IDLE_MS = 10 * 60_000;
 
-  const server = new McpServer({ name: 'figma-mcp', version: '0.1.0' });
+// 허브: 포트를 잡고 Figma 플러그인과 붙는 백그라운드 프로세스(첫 Claude 세션이 띄운다)
+async function runHub(token: string) {
+  const log = (line: string) => console.error(`[${new Date().toISOString()}] ${line}`);
+  const hub = new Hub({ token, build: BUILD, idleMs: HUB_IDLE_MS, log, onExit: () => process.exit(0) });
+  try {
+    const port = await hub.start(DEFAULT_PORT);
+    log(`허브 시작: ws://127.0.0.1:${port} (빌드 ${BUILD}, pid ${process.pid})`);
+  } catch (e) {
+    log(`허브 시작 실패: ${(e as Error).message}`); // 다른 허브가 먼저 떴다
+    process.exit(0);
+  }
+}
+
+function spawnHub(dir: string) {
+  const out = openSync(join(dir, 'hub.log'), 'a');
+  const script = process.argv[1];
+  if (!script) throw new Error('스크립트 경로를 알 수 없습니다');
+  spawn(process.execPath, [script, '--hub'], { detached: true, stdio: ['ignore', out, out] }).unref();
+}
+
+async function runStdio(token: string, home: string, dir: string) {
+  const bridge = new HubClient({
+    token,
+    label: basename(process.cwd()) || 'claude',
+    build: BUILD,
+    port: DEFAULT_PORT,
+    spawnHub: () => spawnHub(dir),
+  });
+
+  const server = new McpServer({ name: 'figma-mcp', version: '0.2.0' });
   const tools = buildTools({
     bridge,
     home,
@@ -35,6 +62,16 @@ async function main() {
     });
   }
   await server.connect(new StdioServerTransport());
+  // Figma 플러그인이 바로 붙을 수 있게 허브를 미리 띄워 둔다. 실패는 첫 도구 호출이 알린다.
+  bridge.ready().catch((e: Error) => console.error(`[figma-mcp] 허브 연결 실패: ${e.message}`));
+}
+
+async function main() {
+  const home = homedir();
+  const dir = join(home, '.figma-mcp');
+  const token = await loadOrCreateToken(dir);
+  if (process.argv.includes('--hub')) await runHub(token);
+  else await runStdio(token, home, dir);
 }
 
 main().catch((e) => {

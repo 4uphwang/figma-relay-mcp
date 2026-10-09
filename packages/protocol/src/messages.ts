@@ -21,6 +21,7 @@ export const RequestSchema = z.object({
   id: z.string(),
   method: z.string(),
   params: z.unknown(),
+  client: z.string().optional(), // 요청을 보낸 Claude 세션(작업 폴더 이름)
 });
 
 export const ResponseSchema = z.union([

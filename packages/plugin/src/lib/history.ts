@@ -12,6 +12,7 @@ export interface HistoryEntry {
   ms?: number; // 응답 전에는 없다
   ok?: boolean;
   summary: string;
+  client?: string; // 요청을 보낸 Claude 세션(작업 폴더)
   nodeIds: string[];
   code?: string;
   error?: { code: string; message: string };
@@ -66,13 +67,14 @@ export function collectNodeIds(params: unknown, result: unknown): string[] {
   return [...ids].slice(0, NODE_ID_LIMIT);
 }
 
-export function startEntry(id: string, method: string, params: unknown, at: number): HistoryEntry {
+export function startEntry(id: string, method: string, params: unknown, at: number, client?: string): HistoryEntry {
   const code = method === 'execute' && isRecord(params) && typeof params.code === 'string' ? params.code : undefined;
   return {
     id,
     method,
     at,
     summary: summarize(method, params),
+    ...(client ? { client } : {}),
     nodeIds: collectNodeIds(params, undefined),
     code: code && code.length > CODE_LIMIT ? `${code.slice(0, CODE_LIMIT)}\n…` : code,
   };

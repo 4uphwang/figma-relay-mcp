@@ -10,7 +10,7 @@ export interface FakeReply {
 
 export interface FakePlugin {
   ws: WebSocket;
-  received: { method: string; params: unknown; binaries: Uint8Array[] }[];
+  received: { method: string; params: unknown; binaries: Uint8Array[]; client?: string }[];
   closed: Promise<number>; // close code
   welcomed: Promise<void>;
 }
@@ -55,7 +55,7 @@ export function fakePlugin(
     const msg = JSON.parse(data.toString());
     if (msg.type === 'welcome') return welcome();
     const binaries = inbound.get(msg.id) ?? [];
-    received.push({ method: msg.method, params: msg.params, binaries });
+    received.push({ method: msg.method, params: msg.params, binaries, client: msg.client });
     const reply = opts.onRequest?.(msg.method, msg.params, binaries) ?? { result: null };
     if (reply.silent) return;
     (reply.binaries ?? []).forEach((b, part) => ws.send(encodeFrame({ id: msg.id, part }, b)));

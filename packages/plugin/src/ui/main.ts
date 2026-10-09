@@ -80,7 +80,9 @@ function renderHistory() {
       item.classList.toggle('open', open);
 
       const top = el('div', 'entry-top');
-      top.append(el('span', 'method', toolName(e.method)), el('span', 'summary', e.summary));
+      top.append(el('span', 'method', toolName(e.method)));
+      if (e.client) top.append(el('span', 'client', e.client));
+      top.append(el('span', 'summary', e.summary));
       if (e.nodeIds.length) {
         const view = el('button', 'link', '보기');
         view.type = 'button';
@@ -211,7 +213,7 @@ function connect() {
     const binaries = inbound.get(msg.id) ?? [];
     inbound.delete(msg.id);
     pendingParams.set(msg.id, msg.params);
-    updateHistory([startEntry(msg.id, msg.method, msg.params, Date.now()), ...history]);
+    updateHistory([startEntry(msg.id, msg.method, msg.params, Date.now(), msg.client), ...history]);
     toMain({ type: 'request', id: msg.id, method: msg.method, params: msg.params, binaries });
   };
 

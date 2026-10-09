@@ -16,12 +16,22 @@ claude mcp add figma-mcp -s user -- node "$(pwd)/packages/server/dist/index.cjs"
 
 Claude Code를 새로 시작하면 서버가 뜨고 `~/.figma-mcp/token`이 생긴다.
 
+## 여러 Claude 세션
+
+Figma 플러그인과 붙는 일은 백그라운드 허브 하나가 맡는다(포트 38451). Claude 세션마다 뜨는 서버는 허브에 붙어 요청을 넘기므로 여러 세션이 동시에 Figma를 쓸 수 있다.
+
+- 허브가 없으면 처음 도구를 부르는(또는 처음 뜬) 세션이 `node …/index.cjs --hub`로 띄운다. 로그는 `~/.figma-mcp/hub.log`.
+- 붙은 세션이 하나도 없이 10분이 지나면 허브는 스스로 끝난다. Claude 세션을 닫아도 다른 세션의 작업은 끊기지 않는다.
+- `pnpm build` 뒤 새로 시작한 세션이 옛 빌드의 허브를 만나면 허브를 내리고 새 빌드로 다시 띄운다(그 순간 다른 세션의 진행 중 요청은 `NOT_CONNECTED`로 끝난다).
+- 플러그인 활동 기록에 요청을 보낸 세션의 작업 폴더 이름이 붙는다.
+- 같은 파일을 여러 세션이 `execute`로 고치면 서로 덮어쓸 수 있다. 플러그인이 요청을 하나씩 처리하므로 코드가 섞이지는 않는다. 세션마다 다른 파일을 맡기는 것이 안전하다.
+
 ## Figma 연결
 
 1. Figma 데스크톱 앱 → 메뉴 → Plugins → Development → Import plugin from manifest… → `packages/plugin/manifest.json`
 2. 같은 메뉴에서 figma-mcp 실행
-3. 처음 한 번 `~/.figma-mcp/token` 내용을 플러그인 창에 붙여 넣고 "토큰 저장 후 연결"
-4. 상태가 "연결됨 · <파일 이름>"이면 끝. 조작하는 동안 플러그인 창을 열어 둔다.
+3. 처음 한 번 `~/.figma-mcp/token` 내용을 플러그인 창에 붙여 넣고 "저장하고 연결"
+4. 상태가 "연결됨"이면 끝. 조작하는 동안 플러그인 창을 열어 둔다. 창에 요청 기록(성공·실패, 실행한 코드, 「보기」로 노드 선택)이 파일마다 50건 남는다.
 
 ## 도구
 
@@ -36,14 +46,14 @@ Claude Code를 새로 시작하면 서버가 뜨고 `~/.figma-mcp/token`이 생�
 | `export_pdf` | 노드들을 순서대로 한 PDF로 저장(기본 ~/Downloads, 덮어쓰지 않음) |
 | `fill_template` | 레이어 이름 `{{키}}`를 행마다 채운 복제본 생성, 선택적으로 PDF(PDF 단계가 실패하면 노드는 남기고 `pdfError`를 붙여 돌려준다) |
 
-모든 도구는 `sessionId`를 받는다. 생략하면 가장 최근에 연결된 파일.
+모든 도구는 `sessionId`를 받는다. 연결된 파일이 하나일 때만 생략할 수 있고, 둘 이상이면 `INVALID_ARGS`.
 
 ## 오류
 
 | 코드 | 뜻 |
 |---|---|
 | `NOT_CONNECTED` | 플러그인이 실행 중이 아님 |
-| `PORT_IN_USE` | 다른 Claude 세션이 포트 38451을 쓰는 중 |
+| `PORT_IN_USE` | 허브가 아닌 프로세스(옛 버전 figma-mcp 등)가 포트 38451을 쓰는 중 |
 | `NODE_NOT_FOUND` | 노드 ID가 없음 |
 | `FONT_MISSING` | 텍스트의 폰트를 불러올 수 없음 |
 | `IMAGE_FAILED` | 이미지를 읽거나 넣지 못함 |
@@ -55,7 +65,6 @@ Claude Code를 새로 시작하면 서버가 뜨고 `~/.figma-mcp/token`이 생�
 ## 제약
 
 - 플러그인 창이 열려 있어야 제어할 수 있다.
-- Claude 세션 하나만 연결할 수 있다(고정 포트).
 - PDF는 Figma 기본 출력(RGB). 인쇄용 CMYK·재단 여백은 지원하지 않는다.
 - `fill_template`의 템플릿은 페이지 바로 아래 있어야 한다(프레임·섹션 안이면 `INVALID_ARGS`).
 - `fill_template` 중 `TIMEOUT`이 나도 이미 만들어진 노드가 남아 있을 수 있다. `find_nodes`로 `<템플릿 이름> / n`을 찾거나 Cmd+Z로 되돌린다.

@@ -10,7 +10,7 @@ import { mergePdfs } from './pdf';
 export type ToolOutput = { kind: 'json'; value: unknown } | { kind: 'image'; png: Uint8Array; meta: unknown };
 
 export interface ToolDeps {
-  bridge: Pick<Bridge, 'call' | 'sessions' | 'ensureStarted'>;
+  bridge: Pick<Bridge, 'call' | 'sessions' | 'ready'>;
   home: string;
   now: () => Date;
   loadImage: (src: string) => Promise<Uint8Array>;
@@ -27,7 +27,10 @@ export interface ToolDef {
 export const LONG_TIMEOUT_MS = 300_000;
 const STATUS_TIMEOUT_MS = 5_000;
 
-const sessionId = z.string().optional().describe('대상 세션 ID(list_files). 생략하면 가장 최근에 연결된 파일');
+const sessionId = z
+  .string()
+  .optional()
+  .describe('대상 세션 ID(list_files). 연결된 파일이 하나일 때만 생략할 수 있다');
 const json = (value: unknown): ToolOutput => ({ kind: 'json', value });
 
 export async function exportPdfToFile(
@@ -62,7 +65,7 @@ export function buildTools(deps: ToolDeps): ToolDef[] {
       description: '플러그인이 연결된 Figma 파일 목록(세션 ID, 파일 이름, 현재 페이지)을 돌려준다.',
       inputSchema: z.object({}),
       handler: async () => {
-        bridge.ensureStarted();
+        await bridge.ready();
         const files = await Promise.all(
           bridge.sessions().map(async (s) => {
             try {

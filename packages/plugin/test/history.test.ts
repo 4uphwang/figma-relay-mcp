@@ -44,6 +44,7 @@ describe('entries', () => {
   it('records duration, outcome and result nodes', () => {
     const e = startEntry('r1', 'execute', { code: 'return figma.createFrame()' }, 1000);
     expect(e.code).toBe('return figma.createFrame()');
+    expect(startEntry('r2', 'getSelection', {}, 0, 'marc-finance').client).toBe('marc-finance');
     const ok = finishEntry(e, { code: '' }, { ok: true, result: { id: '2:3', name: 'Frame', type: 'FRAME' } }, 1400);
     expect(ok).toMatchObject({ ms: 400, ok: true, nodeIds: ['2:3'] });
     const bad = finishEntry(e, {}, { ok: false, error: { code: 'EXEC_ERROR', message: 'boom', hint: 'h' } }, 1100);

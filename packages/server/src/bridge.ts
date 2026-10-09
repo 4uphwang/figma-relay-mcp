@@ -19,6 +19,7 @@ export interface CallOptions {
   sessionId?: string;
   timeoutMs?: number;
   binaries?: Uint8Array[];
+  client?: string; // 플러그인 활동 기록에 보이는 요청자
 }
 
 export interface CallResult<T> {
@@ -54,7 +55,15 @@ export class Bridge {
   private live = new Map<string, Session>();
   private pending = new Map<string, Pending>();
 
-  constructor(private readonly opts: { token: string; helloTimeoutMs?: number }) {}
+  constructor(
+    private readonly opts: {
+      token: string;
+      helloTimeoutMs?: number;
+      // 플러그인이 아닌 연결(허브 클라이언트)의 첫 메시지. 넘긴 뒤 이 연결은 Bridge가 다루지 않는다.
+      onPeer?: (ws: WebSocket, first: unknown) => void;
+      onSessionsChange?: (sessions: SessionInfo[]) => void;
+    },
+  ) {}
 
   start(port: number, host = '127.0.0.1'): Promise<number> {
     this.port = port;
@@ -95,6 +104,10 @@ export class Bridge {
     if (this.startError) throw this.startError;
   }
 
+  async ready(): Promise<void> {
+    this.ensureStarted();
+  }
+
   async call<M extends MethodName>(
     method: M,
     params: MethodMap[M]['params'],
@@ -120,7 +133,7 @@ export class Bridge {
     done.catch(() => {}); // rejection is observed via `await done` below, or discarded if a send fails
     try {
       (opts.binaries ?? []).forEach((b, part) => session.ws.send(encodeFrame({ id, part }, b)));
-      session.ws.send(JSON.stringify({ type: 'request', id, method, params }));
+      session.ws.send(JSON.stringify({ type: 'request', id, method, params, ...(opts.client ? { client: opts.client } : {}) }));
     } catch {
       const p = this.pending.get(id);
       if (p) clearTimeout(p.timer);
@@ -141,17 +154,31 @@ export class Bridge {
       if (!s) throw new ToolError('NOT_CONNECTED', `연결된 세션이 아닙니다: ${sessionId}`, 'list_files로 세션을 확인하세요');
       return s;
     }
-    const all = [...this.live.values()].sort((a, b) => b.connectedAt - a.connectedAt);
-    const latest = all[0];
-    if (!latest) throw new ToolError('NOT_CONNECTED', '연결된 Figma 플러그인이 없습니다', NOT_CONNECTED_HINT);
-    return latest;
+    const all = [...this.live.values()];
+    const only = all[0];
+    if (!only) throw new ToolError('NOT_CONNECTED', '연결된 Figma 플러그인이 없습니다', NOT_CONNECTED_HINT);
+    // 여러 세션이 허브를 같이 쓰므로 "가장 최근 파일"로 짐작하지 않는다
+    if (all.length > 1) {
+      throw new ToolError(
+        'INVALID_ARGS',
+        `Figma 파일 ${all.length}개가 연결돼 있어 대상을 정할 수 없습니다`,
+        'list_files로 세션 ID를 확인하고 sessionId를 넘기세요',
+      );
+    }
+    return only;
+  }
+
+  private changed() {
+    this.opts.onSessionsChange?.(this.sessions());
   }
 
   private accept(ws: WebSocket) {
     let sessionId: string | undefined;
+    let peer = false;
     const helloTimer = setTimeout(() => ws.close(4002, 'hello timeout'), this.opts.helloTimeoutMs ?? 5000);
 
     ws.on('message', (data: RawData, isBinary: boolean) => {
+      if (peer) return;
       if (isBinary) {
         if (!sessionId) return;
         try {
@@ -163,12 +190,19 @@ export class Bridge {
         }
         return;
       }
-      let parsed;
+      let raw: unknown;
       try {
-        parsed = PluginToServerSchema.safeParse(JSON.parse(data.toString()));
+        raw = JSON.parse(data.toString());
       } catch {
         return;
       }
+      if (!sessionId && this.opts.onPeer && (raw as { type?: unknown } | null)?.type !== 'hello') {
+        peer = true;
+        clearTimeout(helloTimer);
+        this.opts.onPeer(ws, raw);
+        return;
+      }
+      const parsed = PluginToServerSchema.safeParse(raw);
       if (!parsed.success) return;
       const msg = parsed.data;
 
@@ -183,6 +217,7 @@ export class Bridge {
         this.live.set(sessionId, { sessionId, fileName: msg.fileName, connectedAt: Date.now(), ws });
         previous?.ws.close(4003, 'replaced');
         ws.send(JSON.stringify({ type: 'welcome' }));
+        this.changed();
         return;
       }
 
@@ -197,7 +232,11 @@ export class Bridge {
 
     ws.on('close', () => {
       clearTimeout(helloTimer);
-      if (sessionId && this.live.get(sessionId)?.ws === ws) this.live.delete(sessionId);
+      if (peer) return;
+      if (sessionId && this.live.get(sessionId)?.ws === ws) {
+        this.live.delete(sessionId);
+        this.changed();
+      }
       for (const [id, p] of this.pending) {
         if (p.ws !== ws) continue;
         this.pending.delete(id);

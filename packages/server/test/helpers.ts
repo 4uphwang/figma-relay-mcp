@@ -9,7 +9,7 @@ export function fakeBridge(replies: Record<string, (params: any, opts: CallOptio
   const calls: Recorded[] = [];
   const bridge: ToolDeps['bridge'] = {
     sessions: () => sessions,
-    ensureStarted: () => {
+    ready: async () => {
       if (startError) throw startError;
     },
     call: (async (method: string, params: unknown, opts: CallOptions = {}) => {

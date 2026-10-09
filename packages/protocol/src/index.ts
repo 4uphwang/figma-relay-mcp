@@ -3,3 +3,4 @@ export * from './errors';
 export * from './messages';
 export * from './frame';
 export * from './methods';
+export * from './hub';

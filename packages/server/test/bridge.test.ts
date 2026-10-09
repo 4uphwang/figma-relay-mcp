@@ -118,7 +118,7 @@ describe('Bridge', () => {
     expect(await codeOf(bridge.call('getStatus', {}, { sessionId: 'nope' }))).toBe('NOT_CONNECTED');
   });
 
-  it('defaults to the most recent session and honours sessionId', async () => {
+  it('needs sessionId once more than one file is connected', async () => {
     const { bridge, port } = await startBridge();
     const a = fakePlugin(port, { token: TOKEN, sessionId: 'a', fileName: 'A', onRequest: () => ({ result: 'A' }) });
     await a.welcomed;
@@ -126,7 +126,8 @@ describe('Bridge', () => {
     const b = fakePlugin(port, { token: TOKEN, sessionId: 'b', fileName: 'B', onRequest: () => ({ result: 'B' }) });
     await b.welcomed;
     expect(bridge.sessions().map((s) => s.sessionId)).toEqual(['a', 'b']);
-    expect((await bridge.call('execute', { code: '' })).result).toBe('B');
+    expect(await codeOf(bridge.call('execute', { code: '' }))).toBe('INVALID_ARGS');
+    expect((await bridge.call('execute', { code: '' }, { sessionId: 'b' })).result).toBe('B');
     expect((await bridge.call('execute', { code: '' }, { sessionId: 'a' })).result).toBe('A');
   });
 
