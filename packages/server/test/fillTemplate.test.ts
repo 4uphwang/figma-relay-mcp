@@ -2,6 +2,7 @@ import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { ToolError } from '../src/errors';
 import { fakeBridge, samplePdf, toolsWith } from './helpers';
 
 describe('fill_template', () => {
@@ -47,6 +48,20 @@ describe('fill_template', () => {
     expect(out.kind === 'json' && (out.value as { pdf: { pages: number; path: string } }).pdf).toMatchObject({
       pages: 2,
       path: join(home, 'Downloads', '명함-20261010-090000.pdf'),
+    });
+  });
+
+  it('keeps the created node ids and reports pdfError when the PDF export fails', async () => {
+    const { bridge } = fakeBridge({
+      fillTemplate: () => ({ result: { nodeIds: ['9:1'], warnings: [] } }),
+      exportPdf: () => {
+        throw new ToolError('NODE_NOT_FOUND', '없음');
+      },
+    });
+    const out = await toolsWith(bridge)('fill_template', { templateId: '1:1', rows: [{ a: 'x' }], exportPdf: {} });
+    expect(out).toEqual({
+      kind: 'json',
+      value: { nodeIds: ['9:1'], warnings: [], pdfError: { code: 'NODE_NOT_FOUND', message: '없음' } },
     });
   });
 

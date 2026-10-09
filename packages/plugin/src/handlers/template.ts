@@ -41,54 +41,61 @@ export const fillTemplate: Handler<'fillTemplate'> = async ({ templateId, rows, 
     }
   });
 
-  figma.commitUndo();
-  const target: BaseNode & ChildrenMixin =
-    layout === 'page' ? figma.createPage() : (template.parent as PageNode);
-  if (layout === 'page') (target as PageNode).name = `${template.name} 생성`;
-  const origin = layout === 'page' ? { x: 0, y: 0 } : { x: template.x + template.width + GAP, y: template.y };
-
   const nodeIds: string[] = [];
   const warnings: TemplateWarning[] = [];
 
-  for (const [i, row] of rows.entries()) {
-    const rowNo = i + 1;
-    const copy = template.type === 'COMPONENT' ? template.createInstance() : template.clone();
-    target.appendChild(copy);
-    const pos = gridPosition(i, origin, template);
-    copy.x = pos.x;
-    copy.y = pos.y;
-    copy.name = `${template.name} / ${rowNo}`;
-    nodeIds.push(copy.id);
+  figma.commitUndo();
+  try {
+    const target: BaseNode & ChildrenMixin =
+      layout === 'page' ? figma.createPage() : (template.parent as PageNode);
+    if (layout === 'page') (target as PageNode).name = `${template.name} 생성`;
+    const origin = layout === 'page' ? { x: 0, y: 0 } : { x: template.x + template.width + GAP, y: template.y };
 
-    for (const key of unknownKeys(row, templateKeys)) warnings.push({ row: rowNo, key, code: 'UNKNOWN_KEY' });
+    for (const [i, row] of rows.entries()) {
+      const rowNo = i + 1;
+      const copy = template.type === 'COMPONENT' ? template.createInstance() : template.clone();
+      target.appendChild(copy);
+      const pos = gridPosition(i, origin, template);
+      copy.x = pos.x;
+      copy.y = pos.y;
+      copy.name = `${template.name} / ${rowNo}`;
+      nodeIds.push(copy.id);
 
-    for (const layer of keyLayers(copy)) {
-      const key = keyOf(layer.name)!;
-      const plan = planCell(kindOf(layer), row[key]);
-      if (plan.kind === 'skip') continue;
-      if (plan.kind === 'warn') {
-        warnings.push({ row: rowNo, key, code: plan.code, ...(plan.detail ? { detail: plan.detail } : {}) });
-        continue;
-      }
-      if (plan.kind === 'text') {
-        const text = layer as TextNode;
-        try {
-          await loadFonts(text);
-        } catch (e) {
-          warnings.push({ row: rowNo, key, code: 'FONT_MISSING', detail: (e as Error).message });
+      for (const key of unknownKeys(row, templateKeys)) warnings.push({ row: rowNo, key, code: 'UNKNOWN_KEY' });
+
+      for (const layer of keyLayers(copy)) {
+        const key = keyOf(layer.name)!;
+        const plan = planCell(kindOf(layer), row[key]);
+        if (plan.kind === 'skip') continue;
+        if (plan.kind === 'warn') {
+          warnings.push({ row: rowNo, key, code: plan.code, ...(plan.detail ? { detail: plan.detail } : {}) });
           continue;
         }
-        text.characters = plan.text;
-        continue;
+        if (plan.kind === 'text') {
+          const text = layer as TextNode;
+          try {
+            await loadFonts(text);
+          } catch (e) {
+            warnings.push({ row: rowNo, key, code: 'FONT_MISSING', detail: (e as Error).message });
+            continue;
+          }
+          try {
+            text.characters = plan.text;
+          } catch (e) {
+            warnings.push({ row: rowNo, key, code: 'FONT_MISSING', detail: (e as Error).message });
+          }
+          continue;
+        }
+        const hash = images[plan.asset];
+        if (typeof hash !== 'string') {
+          warnings.push({ row: rowNo, key, code: 'IMAGE_FAILED', detail: hash?.message ?? `이미지 ${plan.asset} 없음` });
+          continue;
+        }
+        (layer as GeometryMixin).fills = [{ type: 'IMAGE', imageHash: hash, scaleMode: 'FILL' }];
       }
-      const hash = images[plan.asset];
-      if (typeof hash !== 'string') {
-        warnings.push({ row: rowNo, key, code: 'IMAGE_FAILED', detail: hash?.message ?? `이미지 ${plan.asset} 없음` });
-        continue;
-      }
-      (layer as GeometryMixin).fills = [{ type: 'IMAGE', imageHash: hash, scaleMode: 'FILL' }];
     }
+  } finally {
+    figma.commitUndo();
   }
-  figma.commitUndo();
   return { nodeIds, warnings };
 };
