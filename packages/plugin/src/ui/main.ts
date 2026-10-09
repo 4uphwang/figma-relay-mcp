@@ -2,7 +2,8 @@ import { DEFAULT_PORT, ServerToPluginSchema, decodeFrame, encodeFrame } from '@f
 import type { MainToUi, UiToMain } from '../bridgeTypes';
 import { nextDelay } from '../lib/backoff';
 
-const WS_URL = `ws://127.0.0.1:${DEFAULT_PORT}`;
+// Figma manifest는 devAllowedDomains에 127.0.0.1을 받지 않는다(docs/spike-results.md). 서버는 127.0.0.1에만 바인딩한다.
+const WS_URL = `ws://localhost:${DEFAULT_PORT}`;
 const CLOSE_BAD_TOKEN = 4001;
 
 const statusEl = document.getElementById('status') as HTMLDivElement;

@@ -108,7 +108,7 @@ Claude Code ─stdio─▶ server ─WebSocket─▶ plugin UI ─postMessage─
 ## 구현 전에 확인할 위험 (1단계 맨 앞, 실험)
 
 1. 플러그인 샌드박스에서 `new Function`/`eval`이 되는가. 안 되면 `execute`를 JSON 명령어 목록 해석 방식으로 바꾸고 설계를 다시 검토한다.
-2. 개발 플러그인 UI iframe에서 `ws://127.0.0.1:<port>`에 연결되는가(`networkAccess.devAllowedDomains`).
+2. 개발 플러그인 UI iframe에서 로컬 WebSocket에 연결되는가(`networkAccess.devAllowedDomains`). → 확인됨: manifest는 `127.0.0.1`을 거절하므로 플러그인은 `ws://localhost:<port>`로 연결한다(`docs/spike-results.md`).
 3. 무료 계정 데스크톱 앱에서 개발 플러그인을 불러와 `exportAsync({format:'PDF'})`가 되는가.
 
 하나라도 막히면 구현을 멈추고 설계로 돌아온다.
