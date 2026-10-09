@@ -12,12 +12,7 @@ void (async () => {
   post({ type: 'init', token, fileName: figma.root.name });
 })();
 
-figma.ui.onmessage = async (msg: UiToMain) => {
-  if (msg.type === 'saveToken') {
-    await figma.clientStorage.setAsync(TOKEN_KEY, msg.token);
-    return;
-  }
-  if (msg.type !== 'request') return;
+async function runRequest(msg: Extract<UiToMain, { type: 'request' }>) {
   try {
     const handler = handlers[msg.method as keyof typeof handlers] as
       | ((params: unknown, ctx: { binaries: Uint8Array[]; sendBinary(part: number, bytes: Uint8Array): void }) => Promise<unknown>)
@@ -31,4 +26,16 @@ figma.ui.onmessage = async (msg: UiToMain) => {
   } catch (e) {
     post({ type: 'response', id: msg.id, ok: false, error: toWireError(e) });
   }
+}
+
+// 요청은 한 번에 하나씩 처리한다(fill_template의 undo 단위 안에 다른 요청이 끼지 않도록)
+let queue: Promise<void> = Promise.resolve();
+
+figma.ui.onmessage = (msg: UiToMain) => {
+  if (msg.type === 'saveToken') {
+    void figma.clientStorage.setAsync(TOKEN_KEY, msg.token);
+    return;
+  }
+  if (msg.type !== 'request') return;
+  queue = queue.then(() => runRequest(msg)).catch(() => {});
 };

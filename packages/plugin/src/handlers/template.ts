@@ -91,7 +91,11 @@ export const fillTemplate: Handler<'fillTemplate'> = async ({ templateId, rows, 
           warnings.push({ row: rowNo, key, code: 'IMAGE_FAILED', detail: hash?.message ?? `이미지 ${plan.asset} 없음` });
           continue;
         }
-        (layer as GeometryMixin).fills = [{ type: 'IMAGE', imageHash: hash, scaleMode: 'FILL' }];
+        try {
+          (layer as GeometryMixin).fills = [{ type: 'IMAGE', imageHash: hash, scaleMode: 'FILL' }];
+        } catch (e) {
+          warnings.push({ row: rowNo, key, code: 'IMAGE_FAILED', detail: (e as Error).message });
+        }
       }
     }
   } finally {
