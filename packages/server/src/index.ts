@@ -4,6 +4,7 @@ import { DEFAULT_PORT } from '@figma-mcp/protocol';
 import { McpServer } from '@modelcontextprotocol/server';
 import { StdioServerTransport } from '@modelcontextprotocol/server/stdio';
 import { Bridge } from './bridge';
+import { loadImage } from './images';
 import { errorResult, toCallToolResult } from './result';
 import { loadOrCreateToken } from './token';
 import { buildTools } from './tools';
@@ -22,9 +23,7 @@ async function main() {
     bridge,
     home,
     now: () => new Date(),
-    loadImage: async () => {
-      throw new Error('이미지 로드는 3단계에서 연결됩니다');
-    },
+    loadImage,
   });
   for (const t of tools) {
     server.registerTool(t.name, { description: t.description, inputSchema: t.inputSchema }, async (args: unknown) => {
