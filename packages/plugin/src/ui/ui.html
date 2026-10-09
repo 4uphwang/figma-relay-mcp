@@ -3,17 +3,104 @@
   <head>
     <meta charset="utf-8" />
     <style>
-      body { font: 12px system-ui, sans-serif; margin: 12px; color: var(--figma-color-text); background: var(--figma-color-bg); }
-      #status { margin-bottom: 10px; }
-      #status[data-tone='ok'] { color: var(--figma-color-text-success); }
-      #status[data-tone='bad'] { color: var(--figma-color-text-danger); }
-      input { width: 100%; box-sizing: border-box; margin-bottom: 6px; padding: 4px; }
+      * { box-sizing: border-box; }
+      body {
+        font: 12px/1.4 system-ui, -apple-system, 'Apple SD Gothic Neo', sans-serif;
+        margin: 0; padding: 12px; display: flex; flex-direction: column; gap: 12px;
+        color: var(--figma-color-text); background: var(--figma-color-bg);
+        word-break: keep-all;
+      }
+      [hidden] { display: none !important; }
+      button { font: inherit; cursor: pointer; }
+
+      header { display: flex; align-items: center; gap: 8px; }
+      .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--tone); }
+      .title { font-size: 13px; font-weight: 600; flex: 1; }
+      .pill { font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 10px; color: var(--tone); background: var(--tone-soft); }
+
+      body[data-tone='ok'] { --tone: var(--figma-color-text-success); --tone-soft: var(--figma-color-bg-success-tertiary); }
+      body[data-tone='wait'] { --tone: var(--figma-color-text-warning); --tone-soft: var(--figma-color-bg-warning-tertiary); }
+      body[data-tone='bad'] { --tone: var(--figma-color-text-danger); --tone-soft: var(--figma-color-bg-danger-tertiary); }
+
+      .banner { padding: 10px; border-radius: 6px; background: var(--tone-soft); display: flex; flex-direction: column; gap: 3px; }
+      .banner strong { color: var(--tone); font-weight: 600; }
+      .banner span { font-size: 11px; line-height: 16px; }
+
+      .info { padding: 10px; border-radius: 6px; background: var(--figma-color-bg-secondary); display: grid; grid-template-columns: 36px 1fr; gap: 6px 8px; }
+      .info dt { color: var(--figma-color-text-secondary); }
+      .info dd { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+      .row { display: flex; align-items: center; gap: 12px; }
+      .note { flex: 1; font-size: 11px; color: var(--figma-color-text-secondary); }
+      .link { border: 0; padding: 0; background: none; font-size: 11px; font-weight: 500; color: var(--figma-color-text-brand); margin-left: auto; }
+      .btn { height: 28px; padding: 0 12px; border-radius: 5px; font-weight: 500; border: 1px solid var(--figma-color-border); background: var(--figma-color-bg); color: var(--figma-color-text); flex: 1; }
+      .btn.primary { border: 0; background: var(--figma-color-bg-brand); color: var(--figma-color-text-onbrand); width: 100%; }
+
+      .history-head { display: flex; align-items: center; padding-bottom: 4px; font-size: 11px; font-weight: 600; color: var(--figma-color-text-secondary); }
+      ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 260px; overflow-y: auto; }
+      .entry { padding: 6px 8px; border-radius: 5px; display: flex; flex-direction: column; gap: 6px; --mark: var(--figma-color-text-success); }
+      .entry[data-ok='false'] { --mark: var(--figma-color-text-danger); }
+      .entry[data-ok='pending'] { --mark: var(--figma-color-text-tertiary); }
+      .entry.expandable { cursor: pointer; }
+      .entry.open { background: var(--figma-color-bg-secondary); }
+      .entry.open[data-ok='false'] { background: var(--figma-color-bg-danger-tertiary); }
+      .entry-top { display: flex; align-items: center; gap: 8px; font-size: 11px; white-space: nowrap; }
+      .entry-top::before { content: ''; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--mark); }
+      .method { font-family: ui-monospace, 'SF Mono', Menlo, monospace; }
+      .entry[data-ok='false'] .method, .entry-error { color: var(--figma-color-text-danger); }
+      .summary { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--figma-color-text-secondary); }
+      .meta { color: var(--figma-color-text-secondary); }
+      .entry .link { margin-left: 0; }
+      .entry-error { font-size: 11px; line-height: 16px; word-break: break-word; }
+      .entry pre { margin: 0; padding: 6px 8px; border-radius: 4px; border: 1px solid var(--figma-color-border); background: var(--figma-color-bg); font: 10px/14px ui-monospace, 'SF Mono', Menlo, monospace; white-space: pre-wrap; word-break: break-all; max-height: 160px; overflow-y: auto; cursor: text; }
+
+      form { display: flex; flex-direction: column; gap: 6px; margin: 0; }
+      .cmd { display: flex; align-items: center; padding: 6px 8px; border-radius: 5px; background: var(--figma-color-bg-secondary); font: 11px ui-monospace, 'SF Mono', Menlo, monospace; }
+      .cmd code { flex: 1; font: inherit; }
+      input { height: 28px; padding: 0 8px; border-radius: 5px; font: inherit; border: 1px solid var(--figma-color-border); background: var(--figma-color-bg); color: var(--figma-color-text); }
+      input:focus { outline: none; border-color: var(--figma-color-border-brand-strong); }
+      body[data-tone='bad'] input { border-color: var(--figma-color-border-danger-strong); }
     </style>
   </head>
-  <body>
-    <div id="status" data-tone="wait">시작 중…</div>
-    <input id="token" type="password" placeholder="~/.figma-mcp/token 내용" />
-    <button id="save">토큰 저장 후 연결</button>
+  <body data-tone="wait">
+    <header>
+      <div class="dot"></div>
+      <div class="title">figma-mcp</div>
+      <div class="pill" id="pill">시작 중</div>
+    </header>
+
+    <div class="banner" id="banner" hidden>
+      <strong id="bannerTitle"></strong>
+      <span id="bannerBody"></span>
+    </div>
+
+    <dl class="info" id="info">
+      <dt>파일</dt><dd id="file">-</dd>
+      <dt>서버</dt><dd id="server">-</dd>
+    </dl>
+
+    <section id="history" hidden>
+      <div class="history-head">
+        <span id="historyTitle">활동 기록</span>
+        <button class="link" id="clearHistory" type="button">지우기</button>
+      </div>
+      <ol id="entries"></ol>
+    </section>
+
+    <div class="row" id="actions">
+      <span class="note" id="note" hidden>기록은 이 파일에 대해 50건까지 남습니다</span>
+      <button class="btn" id="retry" type="button" hidden>지금 다시 연결</button>
+      <button class="link" id="editToken" type="button">토큰 변경</button>
+    </div>
+
+    <form id="tokenForm" hidden>
+      <div class="cmd">
+        <code id="cmd">cat ~/.figma-mcp/token</code>
+        <button class="link" id="copy" type="button">복사</button>
+      </div>
+      <input id="token" type="password" placeholder="토큰 붙여 넣기" autocomplete="off" />
+      <button class="btn primary" id="save" type="submit">저장하고 연결</button>
+    </form>
     <!-- SCRIPT -->
   </body>
 </html>
