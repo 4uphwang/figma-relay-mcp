@@ -1,0 +1,12 @@
+{
+  "name": "@figma-mcp/protocol",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts", "./types": "./src/types.ts" },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json",
+    "build": "echo 'protocol: source-only package'"
+  },
+  "dependencies": { "zod": "4.6.5" }
+}
