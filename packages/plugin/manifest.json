@@ -1,0 +1,14 @@
+{
+  "name": "figma-mcp",
+  "id": "figma-mcp-local",
+  "api": "1.0.0",
+  "main": "dist/code.js",
+  "ui": "dist/ui.html",
+  "editorType": ["figma"],
+  "documentAccess": "dynamic-page",
+  "networkAccess": {
+    "allowedDomains": ["none"],
+    "devAllowedDomains": ["ws://127.0.0.1:38451"],
+    "reasoning": "Claude Code에서 실행 중인 로컬 figma-mcp 서버와만 통신합니다."
+  }
+}
