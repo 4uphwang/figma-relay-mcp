@@ -149,4 +149,25 @@ describe('Bridge', () => {
     expect(second.portInUse).toBe(true);
     expect(await codeOf(second.call('getStatus', {}))).toBe('PORT_IN_USE');
   });
+
+  it('ignores a malformed binary frame and keeps serving calls', async () => {
+    const { bridge, port } = await startBridge();
+    const p = fakePlugin(port, { token: TOKEN, onRequest: () => ({ result: 'ok' }) });
+    await p.welcomed;
+    p.ws.send(new Uint8Array([0, 0, 0, 9, 1]));
+    expect((await bridge.call('execute', { code: '' })).result).toBe('ok');
+  });
+
+  it('rejects with NOT_CONNECTED and leaves nothing pending when send throws', async () => {
+    const { bridge, port } = await startBridge();
+    const p = fakePlugin(port, { token: TOKEN });
+    await p.welcomed;
+    const sock = [...(bridge as any).live.values()][0].ws;
+    sock.send = () => {
+      throw new Error('not open');
+    };
+    expect(await codeOf(bridge.call('getStatus', {}, { timeoutMs: 50 }))).toBe('NOT_CONNECTED');
+    expect((bridge as any).pending.size).toBe(0);
+    await new Promise((r) => setTimeout(r, 80)); // would surface an unhandled rejection if the timer leaked
+  });
 });

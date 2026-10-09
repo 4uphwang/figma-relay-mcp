@@ -111,8 +111,16 @@ export class Bridge {
       }, timeoutMs);
       this.pending.set(id, { ws: session.ws, parts: [], timer, resolve, reject });
     });
-    (opts.binaries ?? []).forEach((b, part) => session.ws.send(encodeFrame({ id, part }, b)));
-    session.ws.send(JSON.stringify({ type: 'request', id, method, params }));
+    done.catch(() => {}); // rejection is observed via `await done` below, or discarded if a send fails
+    try {
+      (opts.binaries ?? []).forEach((b, part) => session.ws.send(encodeFrame({ id, part }, b)));
+      session.ws.send(JSON.stringify({ type: 'request', id, method, params }));
+    } catch {
+      const p = this.pending.get(id);
+      if (p) clearTimeout(p.timer);
+      this.pending.delete(id);
+      throw new ToolError('NOT_CONNECTED', 'Figma 플러그인 연결이 끊겼습니다', NOT_CONNECTED_HINT);
+    }
     const { result, binaries } = await done;
     return {
       result: result as MethodMap[M]['result'],
@@ -140,9 +148,13 @@ export class Bridge {
     ws.on('message', (data: RawData, isBinary: boolean) => {
       if (isBinary) {
         if (!sessionId) return;
-        const { header, payload } = decodeFrame(toBytes(data));
-        const p = this.pending.get(header.id);
-        if (p && p.ws === ws) p.parts[header.part] = payload;
+        try {
+          const { header, payload } = decodeFrame(toBytes(data));
+          const p = this.pending.get(header.id);
+          if (p && p.ws === ws) p.parts[header.part] = payload;
+        } catch {
+          // malformed frame: drop silently
+        }
         return;
       }
       let parsed;
