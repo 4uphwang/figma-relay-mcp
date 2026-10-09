@@ -1,9 +1,10 @@
 import type { Handlers } from '../bridgeTypes';
 import { execute } from './execute';
 import { exportPdf } from './exportPdf';
+import { fillTemplate } from './template';
 import { findNodes, getNode, getSelection, getStatus, screenshot } from './read';
 
-export const handlers: Partial<Handlers> = {
+export const handlers: Handlers = {
   getStatus,
   getSelection,
   getNode,
@@ -11,4 +12,5 @@ export const handlers: Partial<Handlers> = {
   screenshot,
   execute,
   exportPdf,
+  fillTemplate,
 };

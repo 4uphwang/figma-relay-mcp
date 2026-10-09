@@ -3,6 +3,7 @@ import { dirname } from 'node:path';
 import { z } from 'zod';
 import type { Bridge } from './bridge';
 import { NOT_CONNECTED_HINT, ToolError } from './errors';
+import { resolveImages } from './images';
 import { defaultPdfPath, expandPath, uniquePath } from './paths';
 import { mergePdfs } from './pdf';
 
@@ -128,6 +129,38 @@ export function buildTools(deps: ToolDeps): ToolDef[] {
       inputSchema: z.object({ ids: z.array(z.string()).min(1), outPath: z.string().optional(), sessionId }),
       handler: async (a: { ids: string[]; outPath?: string; sessionId?: string }) =>
         json(await exportPdfToFile(deps, a.ids, a.outPath, a.sessionId)),
+    },
+    {
+      name: 'fill_template',
+      description:
+        '템플릿 노드(페이지 바로 아래 있어야 함)를 행마다 복제하고, 이름이 {{키}}인 레이어를 채운다. ' +
+        '텍스트 레이어엔 값을 글자로, 도형·프레임 레이어엔 http(s) URL이나 png/jpg/gif 절대 경로를 이미지로 채운다. ' +
+        'layout: grid = 템플릿 오른쪽에 한 줄 5개, page = 새 페이지. 문제가 있는 칸은 건너뛰지 않고 warnings에 남긴다. ' +
+        'exportPdf를 주면 만든 노드를 순서대로 한 PDF로 저장한다.',
+      inputSchema: z.object({
+        templateId: z.string(),
+        rows: z.array(z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()]))).min(1).max(500),
+        layout: z.enum(['grid', 'page']).default('grid'),
+        exportPdf: z.object({ outPath: z.string().optional() }).optional(),
+        sessionId,
+      }),
+      handler: async (a: {
+        templateId: string;
+        rows: Record<string, string | number | boolean | null>[];
+        layout: 'grid' | 'page';
+        exportPdf?: { outPath?: string };
+        sessionId?: string;
+      }) => {
+        const { rows, binaries } = await resolveImages(a.rows, deps.loadImage);
+        const { result, session } = await bridge.call(
+          'fillTemplate',
+          { templateId: a.templateId, rows, layout: a.layout },
+          { sessionId: a.sessionId, timeoutMs: LONG_TIMEOUT_MS, binaries },
+        );
+        if (!a.exportPdf) return json(result);
+        const pdf = await exportPdfToFile(deps, result.nodeIds, a.exportPdf.outPath, session.sessionId);
+        return json({ ...result, pdf });
+      },
     },
   ];
 }
