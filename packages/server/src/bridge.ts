@@ -30,7 +30,10 @@ export interface CallResult<T> {
 
 interface Session extends SessionInfo {
   ws: WebSocket;
+  instance?: string;
 }
+
+const MAX_SLOTS = 50;
 
 interface Pending {
   ws: WebSocket;
@@ -168,6 +171,18 @@ export class Bridge {
     return only;
   }
 
+  // 같은 창(instance)이 다시 붙으면 그 자리를 바꿔 끼운다. 같은 파일의 다른 탭이나 복제한 파일(문서에 적힌 id가
+  // 같이 복사된다)이면 끊지 않고 <id>-2, -3… 빈 자리를 준다. instance가 없는 옛 플러그인은 늘 바꿔 끼운다.
+  private slotFor(wanted: string, instance?: string): string {
+    if (!instance) return wanted;
+    const slots = [wanted, ...Array.from({ length: MAX_SLOTS - 1 }, (_, i) => `${wanted}-${i + 2}`)];
+    return (
+      slots.find((id) => this.live.get(id)?.instance === instance) ??
+      slots.find((id) => !this.live.has(id)) ??
+      wanted
+    );
+  }
+
   private changed() {
     this.opts.onSessionsChange?.(this.sessions());
   }
@@ -212,11 +227,11 @@ export class Bridge {
           ws.close(4001, 'bad token');
           return;
         }
-        sessionId = msg.sessionId;
+        sessionId = this.slotFor(msg.sessionId, msg.instance);
         const previous = this.live.get(sessionId);
-        this.live.set(sessionId, { sessionId, fileName: msg.fileName, connectedAt: Date.now(), ws });
+        this.live.set(sessionId, { sessionId, fileName: msg.fileName, connectedAt: Date.now(), ws, instance: msg.instance });
         previous?.ws.close(4003, 'replaced');
-        ws.send(JSON.stringify({ type: 'welcome' }));
+        ws.send(JSON.stringify({ type: 'welcome', sessionId }));
         this.changed();
         return;
       }

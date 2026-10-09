@@ -14,6 +14,8 @@ const bannerTitleEl = $('bannerTitle');
 const bannerBodyEl = $('bannerBody');
 const fileEl = $('file');
 const serverEl = $('server');
+const sessionLabelEl = $('sessionLabel');
+const sessionEl = $('session');
 const historyEl = $('history');
 const historyTitleEl = $('historyTitle');
 const entriesEl = $<HTMLOListElement>('entries');
@@ -26,7 +28,10 @@ const tokenEl = $<HTMLInputElement>('token');
 const copyEl = $<HTMLButtonElement>('copy');
 const cmdEl = $('cmd');
 
-const sessionId = Math.random().toString(36).slice(2) + Date.now().toString(36);
+// 세션 id는 파일마다 고정(init의 fileId). 서버가 다른 탭과 겹친다며 -2를 붙이면 welcome으로 받는다.
+const instance = Math.random().toString(36).slice(2) + Date.now().toString(36);
+let fileId = '';
+let sessionId = '';
 let token = '';
 let fileName = '';
 let ws: WebSocket | undefined;
@@ -166,6 +171,8 @@ function render() {
   fileEl.textContent = fileName || '-';
   fileEl.title = fileName;
   serverEl.textContent = `localhost:${DEFAULT_PORT}`;
+  sessionLabelEl.hidden = sessionEl.hidden = state !== 'connected';
+  sessionEl.textContent = sessionId;
 
   const needsToken = state === 'noToken' || state === 'badToken';
   tokenFormEl.hidden = !(needsToken || editingToken);
@@ -195,7 +202,7 @@ function connect() {
   sock.binaryType = 'arraybuffer';
   ws = sock;
 
-  sock.onopen = () => sock.send(JSON.stringify({ type: 'hello', token, sessionId, fileName }));
+  sock.onopen = () => sock.send(JSON.stringify({ type: 'hello', token, sessionId: fileId, fileName, instance }));
 
   sock.onmessage = (ev: MessageEvent) => {
     if (ev.data instanceof ArrayBuffer) {
@@ -209,6 +216,7 @@ function connect() {
     if (!parsed.success) return;
     const msg = parsed.data;
     if (msg.type === 'welcome') {
+      sessionId = msg.sessionId ?? fileId;
       attempt = 0;
       editingToken = false;
       setState('connected');
@@ -263,6 +271,7 @@ window.onmessage = (ev: MessageEvent) => {
   if (msg.type === 'init') {
     token = msg.token;
     fileName = msg.fileName;
+    fileId = msg.fileId;
     tokenEl.value = token;
     history = loadHistory(msg.history);
     renderHistory();

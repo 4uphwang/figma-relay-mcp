@@ -11,6 +11,7 @@ const UI_WIDTH = 300;
 figma.showUI(__html__, { width: UI_WIDTH, height: 180, themeColors: true });
 
 // figma.fileKey는 비공개 플러그인에서만 읽을 수 있어서, 파일마다 id를 한 번 만들어 문서에 적어 둔다.
+// 이 id가 MCP 세션 id가 되어 플러그인을 다시 실행해도 바뀌지 않는다.
 // 기록 자체는 문서가 아니라 이 컴퓨터의 clientStorage에 둔다(실행한 코드를 공동 작업자와 나누지 않도록).
 function fileId(): string {
   const saved = figma.root.getPluginData(FILE_ID_KEY);
@@ -23,12 +24,13 @@ function fileId(): string {
     return `name:${figma.root.name}`; // 보기 전용 파일
   }
 }
-const historyKey = HISTORY_KEY + fileId();
+const FILE_ID = fileId();
+const historyKey = HISTORY_KEY + FILE_ID;
 
 void (async () => {
   const token = ((await figma.clientStorage.getAsync(TOKEN_KEY)) as string | undefined) ?? '';
   const history: unknown = await figma.clientStorage.getAsync(historyKey);
-  post({ type: 'init', token, fileName: figma.root.name, history });
+  post({ type: 'init', token, fileName: figma.root.name, fileId: FILE_ID, history });
 })();
 
 function pageOf(node: BaseNode): PageNode | undefined {

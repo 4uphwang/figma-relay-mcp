@@ -142,6 +142,36 @@ describe('Bridge', () => {
     expect((await bridge.call('execute', { code: '' })).result).toBe(2);
   });
 
+  it('gives another tab or a duplicated file of the same id its own slot instead of kicking it', async () => {
+    const { bridge, port } = await startBridge();
+    const a = fakePlugin(port, { token: TOKEN, sessionId: 'file', instance: 'tab-a', onRequest: () => ({ result: 'A' }) });
+    expect(await a.assigned).toBe('file');
+    const b = fakePlugin(port, { token: TOKEN, sessionId: 'file', instance: 'tab-b', onRequest: () => ({ result: 'B' }) });
+    expect(await b.assigned).toBe('file-2');
+    expect(bridge.sessions().map((s) => s.sessionId)).toEqual(['file', 'file-2']);
+    expect((await bridge.call('execute', { code: '' }, { sessionId: 'file' })).result).toBe('A');
+    expect((await bridge.call('execute', { code: '' }, { sessionId: 'file-2' })).result).toBe('B');
+
+    // tab-b가 다시 붙으면 자기 자리(file-2)를 되찾고, tab-a는 그대로다
+    const b2 = fakePlugin(port, { token: TOKEN, sessionId: 'file', instance: 'tab-b', onRequest: () => ({ result: 'B2' }) });
+    expect(await b2.assigned).toBe('file-2');
+    expect(await b.closed).toBe(4003);
+    expect((await bridge.call('execute', { code: '' }, { sessionId: 'file' })).result).toBe('A');
+    expect((await bridge.call('execute', { code: '' }, { sessionId: 'file-2' })).result).toBe('B2');
+  });
+
+  it('hands the plain id back once the first tab closes', async () => {
+    const { bridge, port } = await startBridge();
+    const a = fakePlugin(port, { token: TOKEN, sessionId: 'file', instance: 'tab-a' });
+    await a.welcomed;
+    a.ws.close();
+    await a.closed;
+    await new Promise((r) => setTimeout(r, 20));
+    const c = fakePlugin(port, { token: TOKEN, sessionId: 'file', instance: 'tab-c' });
+    expect(await c.assigned).toBe('file');
+    expect(bridge.sessions().map((s) => s.sessionId)).toEqual(['file']);
+  });
+
   it('reports PORT_IN_USE when the port is taken', async () => {
     const { port } = await startBridge();
     const second = new Bridge({ token: TOKEN });

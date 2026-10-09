@@ -13,6 +13,7 @@ export interface FakePlugin {
   received: { method: string; params: unknown; binaries: Uint8Array[]; client?: string }[];
   closed: Promise<number>; // close code
   welcomed: Promise<void>;
+  assigned: Promise<string | undefined>; // welcome으로 받은 세션 id
 }
 
 export function fakePlugin(
@@ -20,6 +21,7 @@ export function fakePlugin(
   opts: {
     token: string;
     sessionId?: string;
+    instance?: string;
     fileName?: string;
     sendHello?: boolean;
     onRequest?: (method: string, params: unknown, binaries: Uint8Array[]) => FakeReply;
@@ -28,8 +30,9 @@ export function fakePlugin(
   const ws = new WebSocket(`ws://127.0.0.1:${port}`);
   const received: FakePlugin['received'] = [];
   const inbound = new Map<string, Uint8Array[]>();
-  let welcome!: () => void;
-  const welcomed = new Promise<void>((r) => (welcome = r));
+  let welcome!: (id: string | undefined) => void;
+  const assigned = new Promise<string | undefined>((r) => (welcome = r));
+  const welcomed = assigned.then(() => {});
   const closed = new Promise<number>((r) => ws.on('close', (code) => r(code)));
 
   ws.on('open', () => {
@@ -40,6 +43,7 @@ export function fakePlugin(
         token: opts.token,
         sessionId: opts.sessionId ?? 's1',
         fileName: opts.fileName ?? 'File',
+        ...(opts.instance ? { instance: opts.instance } : {}),
       }),
     );
   });
@@ -53,7 +57,7 @@ export function fakePlugin(
       return;
     }
     const msg = JSON.parse(data.toString());
-    if (msg.type === 'welcome') return welcome();
+    if (msg.type === 'welcome') return welcome(msg.sessionId);
     const binaries = inbound.get(msg.id) ?? [];
     received.push({ method: msg.method, params: msg.params, binaries, client: msg.client });
     const reply = opts.onRequest?.(msg.method, msg.params, binaries) ?? { result: null };
@@ -68,5 +72,5 @@ export function fakePlugin(
     );
   });
 
-  return { ws, received, closed, welcomed };
+  return { ws, received, closed, welcomed, assigned };
 }

@@ -10,11 +10,12 @@ export const WireErrorSchema = z.object({
 export const HelloSchema = z.object({
   type: z.literal('hello'),
   token: z.string(),
-  sessionId: z.string(),
+  sessionId: z.string(), // 원하는 id(파일마다 고정). 서버가 겹치면 -2, -3을 붙여 welcome으로 알린다
   fileName: z.string(),
+  instance: z.string().optional(), // 플러그인을 실행할 때마다 새로 만든다. 같은 창의 재연결과 다른 탭을 가른다
 });
 
-export const WelcomeSchema = z.object({ type: z.literal('welcome') });
+export const WelcomeSchema = z.object({ type: z.literal('welcome'), sessionId: z.string().optional() });
 
 export const RequestSchema = z.object({
   type: z.literal('request'),
