@@ -1,6 +1,10 @@
+import { mkdir, writeFile } from 'node:fs/promises';
+import { dirname } from 'node:path';
 import { z } from 'zod';
 import type { Bridge } from './bridge';
-import { NOT_CONNECTED_HINT } from './errors';
+import { NOT_CONNECTED_HINT, ToolError } from './errors';
+import { defaultPdfPath, expandPath, uniquePath } from './paths';
+import { mergePdfs } from './pdf';
 
 export type ToolOutput = { kind: 'json'; value: unknown } | { kind: 'image'; png: Uint8Array; meta: unknown };
 
@@ -24,6 +28,30 @@ const STATUS_TIMEOUT_MS = 5_000;
 
 const sessionId = z.string().optional().describe('대상 세션 ID(list_files). 생략하면 가장 최근에 연결된 파일');
 const json = (value: unknown): ToolOutput => ({ kind: 'json', value });
+
+export async function exportPdfToFile(
+  deps: ToolDeps,
+  ids: string[],
+  outPath: string | undefined,
+  sessionId?: string,
+): Promise<{ path: string; pages: number; bytes: number }> {
+  const { binaries, session } = await deps.bridge.call('exportPdf', { ids }, { sessionId, timeoutMs: LONG_TIMEOUT_MS });
+  const received = binaries.filter(Boolean).length;
+  if (binaries.length !== ids.length || received !== ids.length) {
+    throw new ToolError('IO_ERROR', `PDF ${ids.length}개 중 ${received}개만 받았습니다`, '다시 시도하세요');
+  }
+  const { bytes, pages } = await mergePdfs(binaries);
+  const target = await uniquePath(
+    outPath ? expandPath(outPath, deps.home) : defaultPdfPath(session.fileName, deps.now(), deps.home),
+  );
+  try {
+    await mkdir(dirname(target), { recursive: true });
+    await writeFile(target, bytes, { flag: 'wx' });
+  } catch (e) {
+    throw new ToolError('IO_ERROR', `PDF 저장 실패: ${(e as Error).message}`, '저장 경로의 권한과 남은 공간을 확인하세요');
+  }
+  return { path: target, pages, bytes: bytes.length };
+}
 
 export function buildTools(deps: ToolDeps): ToolDef[] {
   const { bridge } = deps;
@@ -91,6 +119,15 @@ export function buildTools(deps: ToolDeps): ToolDef[] {
       inputSchema: z.object({ code: z.string().min(1), sessionId }),
       handler: async (a: { code: string; sessionId?: string }) =>
         json((await bridge.call('execute', { code: a.code }, { sessionId: a.sessionId })).result),
+    },
+    {
+      name: 'export_pdf',
+      description:
+        '노드들을 주어진 순서대로 한 PDF로 합쳐 저장한다(Figma 기본 PDF: RGB, 벡터, 텍스트 선택 가능). ' +
+        'outPath 생략 시 ~/Downloads/<파일이름>-<시각>.pdf. 같은 이름이 있으면 -2, -3을 붙이고 덮어쓰지 않는다.',
+      inputSchema: z.object({ ids: z.array(z.string()).min(1), outPath: z.string().optional(), sessionId }),
+      handler: async (a: { ids: string[]; outPath?: string; sessionId?: string }) =>
+        json(await exportPdfToFile(deps, a.ids, a.outPath, a.sessionId)),
     },
   ];
 }

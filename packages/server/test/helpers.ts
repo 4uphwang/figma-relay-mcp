@@ -1,3 +1,4 @@
+import { PDFDocument } from 'pdf-lib';
 import type { CallOptions, SessionInfo } from '../src/bridge';
 import { ToolError } from '../src/errors';
 import { buildTools, type ToolDeps } from '../src/tools';
@@ -27,4 +28,10 @@ export function toolsWith(bridge: ToolDeps['bridge'], extra: Partial<ToolDeps> =
     if (!t) throw new Error(`no tool ${name}`);
     return t.handler(t.inputSchema.parse(args));
   };
+}
+
+export async function samplePdf(sizes: [number, number][]): Promise<Uint8Array> {
+  const doc = await PDFDocument.create();
+  for (const s of sizes) doc.addPage(s);
+  return doc.save();
 }
