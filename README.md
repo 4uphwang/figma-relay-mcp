@@ -58,6 +58,8 @@ Claude Code를 새로 시작하면 서버가 뜨고 `~/.figma-mcp/token`이 생�
 - Claude 세션 하나만 연결할 수 있다(고정 포트).
 - PDF는 Figma 기본 출력(RGB). 인쇄용 CMYK·재단 여백은 지원하지 않는다.
 - `fill_template`의 템플릿은 페이지 바로 아래 있어야 한다(프레임·섹션 안이면 `INVALID_ARGS`).
+- `fill_template` 중 `TIMEOUT`이 나도 이미 만들어진 노드가 남아 있을 수 있다. `find_nodes`로 `<템플릿 이름> / n`을 찾거나 Cmd+Z로 되돌린다.
+- `fill_template` 이미지: `image/*` 응답만, 이미지당 20MB, 전체 200MB까지.
 
 ## 개발
 

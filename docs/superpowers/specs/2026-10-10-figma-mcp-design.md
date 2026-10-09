@@ -41,6 +41,7 @@ Claude Code ─stdio─▶ server ─WebSocket─▶ plugin UI ─postMessage─
 2. UI가 받아 `postMessage`로 main에 넘기고, main이 실행한다.
 3. 결과(JSON 또는 바이너리)가 같은 길로 돌아오고, 서버가 ID로 짝지어 응답한다.
 4. 제한 시간: 기본 30초, `export_pdf`·`fill_template`은 5분.
+5. 한 플러그인에 가는 요청은 한 번에 하나씩 처리한다(앞 요청이 끝나야 다음이 시작).
 
 ### 연결
 
@@ -92,11 +93,15 @@ Claude Code ─stdio─▶ server ─WebSocket─▶ plugin UI ─postMessage─
 - 복제본 이름은 `<템플릿 이름> / <행 번호>`.
 - 행에 없는 키, 템플릿에 없는 키, 폰트 없음, 이미지 실패는 그 행을 만들되 `warnings`에 `{row, key, code}`로 남긴다.
 - 전체를 한 undo 단위로 묶는다.
-- `exportPdf`가 있으면 만든 노드로 `export_pdf`를 이어서 실행한다.
+- `exportPdf`가 있으면 만든 노드로 `export_pdf`를 이어서 실행한다. 노드를 만든 뒤 PDF 단계가 실패하면 결과에 `nodeIds`·`warnings`를 그대로 두고 `pdfError {code,message,hint?}`를 더한다.
+- 템플릿은 페이지 바로 아래 있어야 한다(아니면 `INVALID_ARGS`). 컴포넌트 템플릿은 인스턴스를 만든다.
+- 텍스트를 넣다가 throw하면 `FONT_MISSING`, 이미지 채우기에서 throw하면 `IMAGE_FAILED` 경고가 된다.
+- 예상 못 한 오류가 나도 이미 만든 복제본은 남고, 전체는 여전히 한 undo 단위다.
+- 이미지 처리: `image/*` 응답만 받고, 이미지당 20MB, 전체 200MB, 동시 다운로드 4개까지. 값이 http(s) URL이거나 이미지 확장자의 절대 경로이면 이미지 출처로 취급한다(텍스트 레이어에 넣으면 출처 문자열이 그대로 보인다).
 
 ### 오류
 
-모든 도구는 실패 시 `{code, message, hint}`를 돌려준다.
+모든 도구는 실패 시 `{code, message, hint}`를 돌려준다. 단, 인자 검증 오류는 MCP SDK가 `{code,…}` 대신 "Input validation error" 일반 텍스트로 돌려준다.
 
 `NOT_CONNECTED`, `PORT_IN_USE`, `NODE_NOT_FOUND`, `FONT_MISSING`, `IMAGE_FAILED`, `TIMEOUT`, `EXEC_ERROR`, `INVALID_ARGS`, `IO_ERROR`
 
