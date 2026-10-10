@@ -14,6 +14,13 @@
       button { font: inherit; cursor: pointer; }
 
       header { display: flex; align-items: center; gap: 8px; }
+      .icon-btn { width: 20px; height: 20px; margin-right: -4px; border: 0; border-radius: 4px; padding: 0; background: none; color: var(--figma-color-icon-secondary); display: grid; place-items: center; }
+      .icon-btn:hover { background: var(--figma-color-bg-hover); color: var(--figma-color-icon); }
+      .icon-btn svg { width: 12px; height: 12px; }
+      /* 접힌 막대: 머리만 남긴다 */
+      body.mini { padding: 8px 12px; }
+      body.mini > :not(header, script) { display: none !important; }
+      body.mini .title { font-size: 12px; }
       .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--tone); }
       .title { font-size: 13px; font-weight: 600; flex: 1; }
       .pill { font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 10px; color: var(--tone); background: var(--tone-soft); }
@@ -70,6 +77,9 @@
       <div class="dot"></div>
       <div class="title">figma-mcp</div>
       <div class="pill" id="pill">시작 중</div>
+      <button class="icon-btn" id="collapse" type="button" title="접기">
+        <svg id="collapseIcon" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 6h7" /></svg>
+      </button>
     </header>
 
     <div class="banner" id="banner" hidden>

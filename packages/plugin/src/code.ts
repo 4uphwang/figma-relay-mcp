@@ -3,12 +3,12 @@ import { handlers } from './handlers';
 import { PluginError, toWireError } from './lib/errors';
 
 const TOKEN_KEY = 'figma-mcp-token';
+const COLLAPSED_KEY = 'figma-mcp-collapsed';
 const FILE_ID_KEY = 'figma-mcp-file-id';
 const HISTORY_KEY = 'figma-mcp-history:';
 const post = (m: MainToUi) => figma.ui.postMessage(m);
 
-const UI_WIDTH = 300;
-figma.showUI(__html__, { width: UI_WIDTH, height: 180, themeColors: true });
+figma.showUI(__html__, { width: 300, height: 180, themeColors: true });
 
 // figma.fileKey는 비공개 플러그인에서만 읽을 수 있어서, 파일마다 id를 한 번 만들어 문서에 적어 둔다.
 // 이 id가 MCP 세션 id가 되어 플러그인을 다시 실행해도 바뀌지 않는다.
@@ -30,7 +30,8 @@ const historyKey = HISTORY_KEY + FILE_ID;
 void (async () => {
   const token = ((await figma.clientStorage.getAsync(TOKEN_KEY)) as string | undefined) ?? '';
   const history: unknown = await figma.clientStorage.getAsync(historyKey);
-  post({ type: 'init', token, fileName: figma.root.name, fileId: FILE_ID, history });
+  const collapsed = (await figma.clientStorage.getAsync(COLLAPSED_KEY)) === true;
+  post({ type: 'init', token, fileName: figma.root.name, fileId: FILE_ID, history, collapsed });
 })();
 
 function pageOf(node: BaseNode): PageNode | undefined {
@@ -87,7 +88,11 @@ figma.ui.onmessage = (msg: UiToMain) => {
     return;
   }
   if (msg.type === 'resize') {
-    figma.ui.resize(UI_WIDTH, Math.max(80, Math.min(600, msg.height)));
+    figma.ui.resize(Math.max(160, Math.min(400, msg.width)), Math.max(32, Math.min(600, msg.height)));
+    return;
+  }
+  if (msg.type === 'setCollapsed') {
+    void figma.clientStorage.setAsync(COLLAPSED_KEY, msg.collapsed);
     return;
   }
   if (msg.type !== 'request') return;

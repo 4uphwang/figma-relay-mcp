@@ -9,6 +9,8 @@ const CLOSE_BAD_TOKEN = 4001;
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const pillEl = $('pill');
+const collapseEl = $<HTMLButtonElement>('collapse');
+const collapseIconEl = $('collapseIcon');
 const bannerEl = $('banner');
 const bannerTitleEl = $('bannerTitle');
 const bannerBodyEl = $('bannerBody');
@@ -48,6 +50,10 @@ const pendingParams = new Map<string, unknown>();
 const openEntries = new Set<string>();
 let saveTimer: number | undefined;
 let lastHeight = 0;
+let lastWidth = 0;
+let collapsed = false;
+const FULL_WIDTH = 300;
+const MINI_WIDTH = 200;
 
 const toMain = (m: UiToMain) => parent.postMessage({ pluginMessage: m }, '*');
 
@@ -181,9 +187,19 @@ function render() {
   editTokenEl.hidden = needsToken;
   editTokenEl.textContent = editingToken ? '닫기' : '토큰 변경';
 
-  const height = Math.ceil(document.body.getBoundingClientRect().height);
-  if (height !== lastHeight) toMain({ type: 'resize', height });
+  // 토큰을 넣어야 할 때는 접혀 있어도 편다
+  const mini = collapsed && !needsToken;
+  document.body.classList.toggle('mini', mini);
+  collapseEl.title = mini ? '펼치기' : '접기';
+  collapseIconEl.innerHTML = mini ? '<path d="M2.5 4.5 6 8l3.5-3.5" />' : '<path d="M2.5 6h7" />';
+
+  const width = mini ? MINI_WIDTH : FULL_WIDTH;
+  // body는 창 높이만큼 늘어나 있을 수 있어서(그러면 줄어들지 않는다) 내용의 아래 끝을 잰다
+  const bottom = Math.max(0, ...[...document.body.children].map((c) => c.getBoundingClientRect().bottom));
+  const height = Math.ceil(bottom + parseFloat(getComputedStyle(document.body).paddingBottom));
+  if (height !== lastHeight || width !== lastWidth) toMain({ type: 'resize', width, height });
   lastHeight = height;
+  lastWidth = width;
 }
 
 function setState(next: State) {
@@ -274,6 +290,7 @@ window.onmessage = (ev: MessageEvent) => {
     fileId = msg.fileId;
     tokenEl.value = token;
     history = loadHistory(msg.history);
+    collapsed = msg.collapsed;
     renderHistory();
     connect();
     return;
@@ -292,6 +309,12 @@ tokenFormEl.onsubmit = (ev) => {
 };
 
 retryEl.onclick = reconnect;
+
+collapseEl.onclick = () => {
+  collapsed = !collapsed;
+  toMain({ type: 'setCollapsed', collapsed });
+  render();
+};
 
 clearHistoryEl.onclick = () => {
   openEntries.clear();
