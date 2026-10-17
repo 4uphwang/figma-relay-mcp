@@ -320,12 +320,14 @@ retryEl.onclick = reconnect;
 const isDivider = (name: string) => /^[\s\-–—*]+$/.test(name);
 
 let pagesKey = '';
+let pageOrder: string[] = []; // ⌃1~⌃9가 가리키는 페이지(구분선 제외)
 
 function renderPages(pages: { id: string; name: string }[], current: string) {
   // 같으면 다시 그리지 않는다(누르려는 줄이 바뀌지 않게, 스크롤도 그대로)
   const key = JSON.stringify([pages, current]);
   if (key === pagesKey) return;
   pagesKey = key;
+  pageOrder = pages.filter((p) => !isDivider(p.name)).map((p) => p.id);
   pagesEl.replaceChildren(
     ...pages.map((p) => {
       const li = document.createElement('li');
@@ -338,6 +340,8 @@ function renderPages(pages: { id: string; name: string }[], current: string) {
       btn.type = 'button';
       btn.title = p.name;
       btn.append(el('span', '', p.name));
+      const n = pageOrder.indexOf(p.id) + 1;
+      if (n >= 1 && n <= 9) btn.append(el('kbd', 'page-key', `⌃${n}`));
       if (p.id === current) btn.setAttribute('aria-current', 'page');
       btn.onclick = () => toMain({ type: 'goToPage', id: p.id });
       li.append(btn);
@@ -350,6 +354,18 @@ function renderPages(pages: { id: string; name: string }[], current: string) {
 }
 
 // 이름·순서 변경은 이벤트가 없어서 마우스를 올릴 때·키보드로 들어올 때 다시 받는다
+// ⌃1~⌃9: n번째 페이지. 키 입력은 플러그인 창에 포커스가 있을 때만 들어온다(Figma가 단축키를 넘겨주지 않는다).
+// e.code로 맞춰 한글 입력 중에도 된다.
+window.addEventListener('keydown', (e) => {
+  if (!e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+  const m = /^Digit([1-9])$/.exec(e.code);
+  if (!m) return;
+  const id = pageOrder[Number(m[1]) - 1];
+  if (!id) return;
+  e.preventDefault();
+  toMain({ type: 'goToPage', id });
+});
+
 pagesRowEl.onmouseenter = () => toMain({ type: 'listPages' });
 pagesRowEl.addEventListener('focusin', () => toMain({ type: 'listPages' }));
 
