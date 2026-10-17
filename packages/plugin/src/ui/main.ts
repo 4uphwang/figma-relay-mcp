@@ -10,7 +10,7 @@ const CLOSE_BAD_TOKEN = 4001;
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const pillEl = $('pill');
 const pagesRowEl = $('pagesRow');
-const pagesEl = $<HTMLSelectElement>('pages');
+const pagesEl = $<HTMLUListElement>('pages');
 const collapseEl = $<HTMLButtonElement>('collapse');
 const collapseIconEl = $('collapseIcon');
 const bannerEl = $('banner');
@@ -322,30 +322,36 @@ const isDivider = (name: string) => /^[\s\-–—*]+$/.test(name);
 let pagesKey = '';
 
 function renderPages(pages: { id: string; name: string }[], current: string) {
-  // 같으면 다시 그리지 않는다(열려 있는 목록이 닫히지 않게)
+  // 같으면 다시 그리지 않는다(누르려는 줄이 바뀌지 않게, 스크롤도 그대로)
   const key = JSON.stringify([pages, current]);
   if (key === pagesKey) return;
   pagesKey = key;
   pagesEl.replaceChildren(
     ...pages.map((p) => {
-      const opt = document.createElement('option');
-      opt.value = p.id;
+      const li = document.createElement('li');
       if (isDivider(p.name)) {
-        opt.textContent = '──────────';
-        opt.disabled = true;
-      } else opt.textContent = p.name;
-      opt.selected = p.id === current;
-      return opt;
+        li.className = 'page-divider';
+        li.setAttribute('role', 'separator');
+        return li;
+      }
+      const btn = el('button', 'page');
+      btn.type = 'button';
+      btn.title = p.name;
+      btn.append(el('span', '', p.name));
+      if (p.id === current) btn.setAttribute('aria-current', 'page');
+      btn.onclick = () => toMain({ type: 'goToPage', id: p.id });
+      li.append(btn);
+      return li;
     }),
   );
+  pagesEl.querySelector('[aria-current]')?.scrollIntoView({ block: 'nearest' });
   pagesRowEl.hidden = pages.length < 2; // 페이지가 하나면 옮길 곳이 없다
   render();
 }
 
-pagesEl.onchange = () => toMain({ type: 'goToPage', id: pagesEl.value });
-// 이름·순서가 바뀌었을 수 있어 목록을 열기 전에(마우스를 올릴 때·키보드로 들어올 때) 다시 받는다
+// 이름·순서 변경은 이벤트가 없어서 마우스를 올릴 때·키보드로 들어올 때 다시 받는다
 pagesRowEl.onmouseenter = () => toMain({ type: 'listPages' });
-pagesEl.onfocus = () => toMain({ type: 'listPages' });
+pagesRowEl.addEventListener('focusin', () => toMain({ type: 'listPages' }));
 
 collapseEl.onclick = () => {
   collapsed = !collapsed;
