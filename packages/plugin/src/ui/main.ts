@@ -9,6 +9,8 @@ const CLOSE_BAD_TOKEN = 4001;
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const pillEl = $('pill');
+const pagesRowEl = $('pagesRow');
+const pagesEl = $<HTMLSelectElement>('pages');
 const collapseEl = $<HTMLButtonElement>('collapse');
 const collapseIconEl = $('collapseIcon');
 const bannerEl = $('banner');
@@ -53,7 +55,7 @@ let lastHeight = 0;
 let lastWidth = 0;
 let collapsed = false;
 const FULL_WIDTH = 300;
-const MINI_WIDTH = 200;
+const MINI_WIDTH = 220;
 
 const toMain = (m: UiToMain) => parent.postMessage({ pluginMessage: m }, '*');
 
@@ -295,6 +297,10 @@ window.onmessage = (ev: MessageEvent) => {
     connect();
     return;
   }
+  if (msg.type === 'pages') {
+    renderPages(msg.pages, msg.current);
+    return;
+  }
   if (msg.type === 'response') recordResponse(msg);
   if (!ws || ws.readyState !== WebSocket.OPEN) return;
   if (msg.type === 'binary') ws.send(encodeFrame({ id: msg.id, part: msg.part }, msg.bytes) as Uint8Array<ArrayBuffer>);
@@ -309,6 +315,37 @@ tokenFormEl.onsubmit = (ev) => {
 };
 
 retryEl.onclick = reconnect;
+
+// Figma가 "---" 같은 이름의 페이지를 구분선으로 보여 주듯 여기서도 고를 수 없는 줄로 둔다
+const isDivider = (name: string) => /^[\s\-–—*]+$/.test(name);
+
+let pagesKey = '';
+
+function renderPages(pages: { id: string; name: string }[], current: string) {
+  // 같으면 다시 그리지 않는다(열려 있는 목록이 닫히지 않게)
+  const key = JSON.stringify([pages, current]);
+  if (key === pagesKey) return;
+  pagesKey = key;
+  pagesEl.replaceChildren(
+    ...pages.map((p) => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      if (isDivider(p.name)) {
+        opt.textContent = '──────────';
+        opt.disabled = true;
+      } else opt.textContent = p.name;
+      opt.selected = p.id === current;
+      return opt;
+    }),
+  );
+  pagesRowEl.hidden = pages.length < 2; // 페이지가 하나면 옮길 곳이 없다
+  render();
+}
+
+pagesEl.onchange = () => toMain({ type: 'goToPage', id: pagesEl.value });
+// 이름·순서가 바뀌었을 수 있어 목록을 열기 전에(마우스를 올릴 때·키보드로 들어올 때) 다시 받는다
+pagesRowEl.onmouseenter = () => toMain({ type: 'listPages' });
+pagesEl.onfocus = () => toMain({ type: 'listPages' });
 
 collapseEl.onclick = () => {
   collapsed = !collapsed;

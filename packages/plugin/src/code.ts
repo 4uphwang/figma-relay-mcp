@@ -32,7 +32,25 @@ void (async () => {
   const history: unknown = await figma.clientStorage.getAsync(historyKey);
   const collapsed = (await figma.clientStorage.getAsync(COLLAPSED_KEY)) === true;
   post({ type: 'init', token, fileName: figma.root.name, fileId: FILE_ID, history, collapsed });
+  postPages();
 })();
+
+// 페이지 목록: Figma UI를 숨긴(⌘\) 채로도 플러그인 창에서 페이지를 옮길 수 있게 한다.
+// 이름·순서 변경은 이벤트가 없어서 UI가 목록을 열 때 다시 묻는다(listPages).
+function postPages() {
+  post({
+    type: 'pages',
+    pages: figma.root.children.map((p) => ({ id: p.id, name: p.name })),
+    current: figma.currentPage.id,
+  });
+}
+figma.on('currentpagechange', postPages);
+
+async function goToPage(id: string) {
+  const page = await figma.getNodeByIdAsync(id);
+  if (page?.type === 'PAGE') await figma.setCurrentPageAsync(page);
+  else postPages(); // 지워진 페이지: 목록을 새로 보낸다
+}
 
 function pageOf(node: BaseNode): PageNode | undefined {
   for (let n: BaseNode | null = node; n; n = n.parent) if (n.type === 'PAGE') return n;
@@ -81,6 +99,14 @@ figma.ui.onmessage = (msg: UiToMain) => {
   }
   if (msg.type === 'saveHistory') {
     void figma.clientStorage.setAsync(historyKey, msg.entries);
+    return;
+  }
+  if (msg.type === 'listPages') {
+    postPages();
+    return;
+  }
+  if (msg.type === 'goToPage') {
+    void goToPage(msg.id).catch((e) => figma.notify(`페이지를 열지 못했습니다: ${String(e)}`, { error: true }));
     return;
   }
   if (msg.type === 'focusNodes') {
