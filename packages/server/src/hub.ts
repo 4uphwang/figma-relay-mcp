@@ -12,14 +12,15 @@ import { ToolError } from './errors';
 
 // 허브: 포트를 잡고 Figma 플러그인들과 붙는 백그라운드 프로세스.
 // Claude 세션마다 뜨는 stdio 서버는 HubClient로 같은 포트에 붙어 요청을 넘긴다.
-// 아무 클라이언트도 없이 idleMs가 지나면 스스로 끝난다(onExit).
+// idleMs를 주면 아무 클라이언트도 없이 그만큼 지났을 때 스스로 끝난다(onExit). 주지 않으면 계속 떠 있는다.
+// 플러그인 창의 "서버 재시작"이나 더 새 빌드의 클라이언트가 요청하면 'restart'로 끝난다.
 
 export const CLOSE_BAD_TOKEN = 4001;
 
 export interface HubOptions {
   token: string;
   build: number;
-  idleMs: number;
+  idleMs?: number;
   helloTimeoutMs?: number;
   onExit: (reason: 'idle' | 'restart') => void;
   log?: (line: string) => void;
@@ -36,6 +37,7 @@ export class Hub {
       helloTimeoutMs: opts.helloTimeoutMs,
       onPeer: (ws, first) => this.acceptClient(ws, first),
       onSessionsChange: (sessions) => this.broadcast({ type: 'sessions', sessions }),
+      onRestartRequest: () => this.exit('restart'),
     });
   }
 
@@ -57,7 +59,7 @@ export class Hub {
 
   private armIdle() {
     clearTimeout(this.idleTimer);
-    if (this.clients.size > 0) return;
+    if (this.opts.idleMs === undefined || this.clients.size > 0) return;
     this.idleTimer = setTimeout(() => this.exit('idle'), this.opts.idleMs);
     this.idleTimer.unref?.();
   }

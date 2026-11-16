@@ -14,18 +14,38 @@ import { buildTools } from './tools';
 
 declare const __BUILD__: number;
 const BUILD = typeof __BUILD__ === 'number' ? __BUILD__ : 0;
-const HUB_IDLE_MS = 10 * 60_000;
+const BIND_RETRY_MS = 3000;
 
-// 허브: 포트를 잡고 Figma 플러그인과 붙는 백그라운드 프로세스(첫 Claude 세션이 띄운다)
-async function runHub(token: string) {
+// 허브: 포트를 잡고 Figma 플러그인과 붙는 백그라운드 프로세스. 스스로 꺼지지 않는다.
+// --stay는 launchd(scripts/hub-agent.sh)가 띄운 허브다. 포트가 잡혀 있으면 비워질 때까지 기다렸다가 잡고,
+// 재시작 요청에는 그냥 끝내서 launchd가 새 빌드로 다시 띄우게 한다.
+// --stay가 없으면(Claude 세션이 띄운 허브) 재시작 요청에 새 허브를 직접 띄우고 끝낸다.
+async function runHub(token: string, dir: string, stay: boolean) {
   const log = (line: string) => console.error(`[${new Date().toISOString()}] ${line}`);
-  const hub = new Hub({ token, build: BUILD, idleMs: HUB_IDLE_MS, log, onExit: () => process.exit(0) });
-  try {
-    const port = await hub.start(DEFAULT_PORT);
-    log(`허브 시작: ws://127.0.0.1:${port} (빌드 ${BUILD}, pid ${process.pid})`);
-  } catch (e) {
-    log(`허브 시작 실패: ${(e as Error).message}`); // 다른 허브가 먼저 떴다
-    process.exit(0);
+  const hub = new Hub({
+    token,
+    build: BUILD,
+    log,
+    onExit: (reason) => {
+      if (reason === 'restart' && !stay) spawnHub(dir);
+      process.exit(0);
+    },
+  });
+  let waiting = false;
+  for (;;) {
+    try {
+      const port = await hub.start(DEFAULT_PORT);
+      log(`허브 시작: ws://127.0.0.1:${port} (빌드 ${BUILD}, pid ${process.pid}${stay ? ', launchd' : ''})`);
+      return;
+    } catch (e) {
+      if (!stay) {
+        log(`허브 시작 실패: ${(e as Error).message}`); // 다른 허브가 먼저 떴다
+        process.exit(0);
+      }
+      if (!waiting) log(`포트가 사용 중이라 비워질 때까지 기다립니다 (pid ${process.pid}, launchd)`);
+      waiting = true;
+      await new Promise((r) => setTimeout(r, BIND_RETRY_MS));
+    }
   }
 }
 
@@ -70,7 +90,7 @@ async function main() {
   const home = homedir();
   const dir = join(home, '.figma-mcp');
   const token = await loadOrCreateToken(dir);
-  if (process.argv.includes('--hub')) await runHub(token);
+  if (process.argv.includes('--hub')) await runHub(token, dir, process.argv.includes('--stay'));
   else await runStdio(token, home, dir);
 }
 

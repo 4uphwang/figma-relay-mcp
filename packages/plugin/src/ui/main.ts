@@ -27,6 +27,7 @@ const clearHistoryEl = $<HTMLButtonElement>('clearHistory');
 const noteEl = $('note');
 const retryEl = $<HTMLButtonElement>('retry');
 const editTokenEl = $<HTMLButtonElement>('editToken');
+const restartHubEl = $<HTMLButtonElement>('restartHub');
 const tokenFormEl = $<HTMLFormElement>('tokenForm');
 const tokenEl = $<HTMLInputElement>('token');
 const copyEl = $<HTMLButtonElement>('copy');
@@ -40,6 +41,8 @@ let token = '';
 let fileName = '';
 let ws: WebSocket | undefined;
 let attempt = 0;
+let restartArmed = false;
+let restartTimer: number | undefined;
 let retryTimer: number | undefined;
 let retryAt = 0;
 const inbound = new Map<string, Uint8Array[]>();
@@ -167,7 +170,7 @@ function render() {
 
   const banner =
     state === 'waiting'
-      ? ['서버에 연결하지 못했습니다', `Claude Code에서 figma-mcp 서버가 켜져 있는지 확인하세요. ${Math.max(0, Math.ceil((retryAt - Date.now()) / 1000))}초 뒤 다시 시도합니다.`]
+      ? ['서버에 연결하지 못했습니다', `허브가 꺼져 있습니다. launchd 에이전트(pnpm hub:install)를 등록했다면 곧 다시 켜지고, 아니면 Claude Code 세션이 도구를 부를 때 켜집니다. ${Math.max(0, Math.ceil((retryAt - Date.now()) / 1000))}초 뒤 다시 시도합니다.`]
       : state === 'badToken'
         ? ['토큰이 맞지 않습니다', '터미널에서 아래 명령을 실행해 나온 값을 붙여 넣으세요.']
         : state === 'noToken'
@@ -186,6 +189,8 @@ function render() {
   tokenFormEl.hidden = !(needsToken || editingToken);
   noteEl.hidden = state !== 'connected';
   retryEl.hidden = state !== 'waiting';
+  restartHubEl.hidden = state !== 'connected';
+  restartHubEl.textContent = restartArmed ? '한 번 더 눌러 재시작' : '서버 재시작';
   editTokenEl.hidden = needsToken;
   editTokenEl.textContent = editingToken ? '닫기' : '토큰 변경';
 
@@ -315,6 +320,25 @@ tokenFormEl.onsubmit = (ev) => {
 };
 
 retryEl.onclick = reconnect;
+
+// 서버 재시작: 진행 중인 요청이 끊기므로 3초 안에 한 번 더 눌러야 보낸다.
+// 허브는 끝나기 전에 새 허브를 띄우고(launchd로 띄운 허브면 launchd가 다시 띄운다) 플러그인은 끊긴 뒤 바로 다시 붙는다.
+restartHubEl.onclick = () => {
+  if (!restartArmed) {
+    restartArmed = true;
+    restartTimer = window.setTimeout(() => {
+      restartArmed = false;
+      render();
+    }, 3000);
+    render();
+    return;
+  }
+  window.clearTimeout(restartTimer);
+  restartArmed = false;
+  attempt = 0;
+  if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'restartHub' }));
+  render();
+};
 
 // Figma가 "---" 같은 이름의 페이지를 구분선으로 보여 주듯 여기서도 고를 수 없는 줄로 둔다
 const isDivider = (name: string) => /^[\s\-–—*]+$/.test(name);

@@ -65,6 +65,8 @@ export class Bridge {
       // 플러그인이 아닌 연결(허브 클라이언트)의 첫 메시지. 넘긴 뒤 이 연결은 Bridge가 다루지 않는다.
       onPeer?: (ws: WebSocket, first: unknown) => void;
       onSessionsChange?: (sessions: SessionInfo[]) => void;
+      // 플러그인이 서버 재시작을 눌렀을 때
+      onRestartRequest?: () => void;
     },
   ) {}
 
@@ -237,6 +239,10 @@ export class Bridge {
       }
 
       if (!sessionId) return;
+      if (msg.type === 'restartHub') {
+        this.opts.onRestartRequest?.();
+        return;
+      }
       const p = this.pending.get(msg.id);
       if (!p || p.ws !== ws) return;
       this.pending.delete(msg.id);

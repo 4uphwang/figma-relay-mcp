@@ -23,7 +23,7 @@ function freePort(): Promise<number> {
 
 function makeHub(port: number, opts: { build?: number; idleMs?: number } = {}) {
   const exits: string[] = [];
-  const hub = new Hub({ token: TOKEN, build: opts.build ?? 1, idleMs: opts.idleMs ?? 60_000, onExit: (r) => exits.push(r) });
+  const hub = new Hub({ token: TOKEN, build: opts.build ?? 1, idleMs: 'idleMs' in opts ? opts.idleMs : 60_000, onExit: (r) => exits.push(r) });
   cleanups.push(() => hub.stop());
   const started = hub.start(port);
   return { hub, exits, started };
@@ -152,6 +152,28 @@ describe('Hub + HubClient', () => {
     await makeHub(port).started;
     const { client } = makeClient(port, { token: 'wrong' });
     expect(await codeOf(client.ready())).toBe('NOT_CONNECTED');
+  });
+
+  it('stays up with no sessions when no idleMs is given', async () => {
+    const port = await freePort();
+    const h = makeHub(port, { idleMs: undefined });
+    await h.started;
+    const { client } = makeClient(port);
+    await client.ready();
+    client.close();
+    await new Promise((r) => setTimeout(r, 120));
+    expect(h.exits).toEqual([]);
+  });
+
+  it('exits with restart when the plugin asks for a restart', async () => {
+    const port = await freePort();
+    const h = makeHub(port);
+    await h.started;
+    const plugin = fakePlugin(port, { token: TOKEN });
+    await plugin.welcomed;
+    plugin.ws.send(JSON.stringify({ type: 'restartHub' }));
+    await until(() => h.exits.length === 1);
+    expect(h.exits).toEqual(['restart']);
   });
 
   it('exits when idle with no sessions, but not while one is attached', async () => {

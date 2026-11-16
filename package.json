@@ -6,7 +6,10 @@
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
-    "check": "pnpm typecheck && pnpm test && pnpm build"
+    "check": "pnpm typecheck && pnpm test && pnpm build",
+    "hub:install": "sh scripts/hub-agent.sh install",
+    "hub:uninstall": "sh scripts/hub-agent.sh uninstall",
+    "hub:status": "sh scripts/hub-agent.sh status"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

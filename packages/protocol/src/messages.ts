@@ -30,7 +30,10 @@ export const ResponseSchema = z.union([
   z.object({ type: z.literal('response'), id: z.string(), ok: z.literal(false), error: WireErrorSchema }),
 ]);
 
-export const PluginToServerSchema = z.union([HelloSchema, ResponseSchema]);
+// 플러그인 창의 "서버 재시작" 단추. hello를 마친 연결에서만 받는다
+export const RestartHubSchema = z.object({ type: z.literal('restartHub') });
+
+export const PluginToServerSchema = z.union([HelloSchema, ResponseSchema, RestartHubSchema]);
 export const ServerToPluginSchema = z.union([WelcomeSchema, RequestSchema]);
 
 export type Hello = z.infer<typeof HelloSchema>;
