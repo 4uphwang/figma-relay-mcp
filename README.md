@@ -78,3 +78,7 @@ Figma 플러그인과 붙는 일은 백그라운드 허브 하나가 맡는다(�
 ```bash
 pnpm check   # typecheck → test → build
 ```
+
+## 라이선스
+
+MIT
