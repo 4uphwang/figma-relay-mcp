@@ -1,4 +1,4 @@
-# figma-mcp
+# figma-relay-mcp
 
 Claude Code에서 로컬 MCP로 Figma를 다룬다. 무료 계정으로 동작한다(Dev Mode·REST API 불필요).
 
@@ -11,18 +11,18 @@ Claude Code에서 로컬 MCP로 Figma를 다룬다. 무료 계정으로 동작�
 ```bash
 pnpm install
 pnpm build
-claude mcp add figma-mcp -s user -- node "$(pwd)/packages/server/dist/index.cjs"
+claude mcp add figma-relay-mcp -s user -- node "$(pwd)/packages/server/dist/index.cjs"
 ```
 
-Claude Code를 새로 시작하면 서버가 뜨고 `~/.figma-mcp/token`이 생긴다.
+Claude Code를 새로 시작하면 서버가 뜨고 `~/.figma-relay-mcp/token`이 생긴다.
 
 ## 여러 Claude 세션
 
 Figma 플러그인과 붙는 일은 백그라운드 허브 하나가 맡는다(포트 38451). Claude 세션마다 뜨는 서버는 허브에 붙어 요청을 넘기므로 여러 세션이 동시에 Figma를 쓸 수 있다.
 
-- 허브가 없으면 처음 도구를 부르는(또는 처음 뜬) 세션이 `node …/index.cjs --hub`로 띄운다. 로그는 `~/.figma-mcp/hub.log`.
+- 허브가 없으면 처음 도구를 부르는(또는 처음 뜬) 세션이 `node …/index.cjs --hub`로 띄운다. 로그는 `~/.figma-relay-mcp/hub.log`.
 - 허브는 스스로 꺼지지 않는다. Claude 세션을 모두 닫아도 떠 있어서 플러그인 연결이 유지된다.
-- `pnpm hub:install`로 launchd 에이전트(`~/Library/LaunchAgents/com.figma-mcp.hub.plist`)를 등록하면 로그인할 때 허브가 켜지고, 죽거나 재시작하면 launchd가 바로 다시 띄운다. `pnpm hub:status`로 상태, `pnpm hub:uninstall`로 해제. 에이전트 허브(`--hub --stay`)는 다른 허브가 포트를 잡고 있으면 비워질 때까지 기다린다.
+- `pnpm hub:install`로 launchd 에이전트(`~/Library/LaunchAgents/com.figma-relay-mcp.hub.plist`)를 등록하면 로그인할 때 허브가 켜지고, 죽거나 재시작하면 launchd가 바로 다시 띄운다. `pnpm hub:status`로 상태, `pnpm hub:uninstall`로 해제. 에이전트 허브(`--hub --stay`)는 다른 허브가 포트를 잡고 있으면 비워질 때까지 기다린다.
 - 플러그인 창의 「서버 재시작」(연결됨 상태, 3초 안에 두 번 누름)은 허브를 끄고 새 빌드로 다시 띄운다. launchd 에이전트가 없으면 허브가 끝나기 전에 새 허브를 직접 띄운다. 진행 중인 요청은 끊긴다.
 - `pnpm build` 뒤 새로 시작한 세션이 옛 빌드의 허브를 만나면 허브를 내리고 새 빌드로 다시 띄운다(그 순간 다른 세션의 진행 중 요청은 `NOT_CONNECTED`로 끝난다).
 - 플러그인 활동 기록에 요청을 보낸 세션의 작업 폴더 이름이 붙는다.
@@ -31,8 +31,8 @@ Figma 플러그인과 붙는 일은 백그라운드 허브 하나가 맡는다(�
 ## Figma 연결
 
 1. Figma 데스크톱 앱 → 메뉴 → Plugins → Development → Import plugin from manifest… → `packages/plugin/manifest.json`
-2. 같은 메뉴에서 figma-mcp 실행
-3. 처음 한 번 `~/.figma-mcp/token` 내용을 플러그인 창에 붙여 넣고 "저장하고 연결"
+2. 같은 메뉴에서 figma-relay-mcp 실행
+3. 처음 한 번 `~/.figma-relay-mcp/token` 내용을 플러그인 창에 붙여 넣고 "저장하고 연결"
 4. 상태가 "연결됨"이면 끝. 조작하는 동안 플러그인 창을 열어 둔다. 창에 요청 기록(성공·실패, 실행한 코드, 「보기」로 노드 선택)이 파일마다 50건 남는다. 머리의 – 단추로 상태 막대만 남게 접을 수 있고, 접어도 페이지 목록이 남아 Figma UI를 숨긴(⌘\\) 채로 페이지를 옮길 수 있다. 플러그인 창에 포커스가 있으면 ⌃1~⌃9로 n번째 페이지로 간다(구분선 페이지는 세지 않는다).
 
 ## 도구
@@ -56,7 +56,7 @@ Figma 플러그인과 붙는 일은 백그라운드 허브 하나가 맡는다(�
 | 코드 | 뜻 |
 |---|---|
 | `NOT_CONNECTED` | 플러그인이 실행 중이 아님 |
-| `PORT_IN_USE` | 허브가 아닌 프로세스(옛 버전 figma-mcp 등)가 포트 38451을 쓰는 중 |
+| `PORT_IN_USE` | 허브가 아닌 프로세스(옛 버전 figma-relay-mcp 등)가 포트 38451을 쓰는 중 |
 | `NODE_NOT_FOUND` | 노드 ID가 없음 |
 | `FONT_MISSING` | 텍스트의 폰트를 불러올 수 없음 |
 | `IMAGE_FAILED` | 이미지를 읽거나 넣지 못함 |

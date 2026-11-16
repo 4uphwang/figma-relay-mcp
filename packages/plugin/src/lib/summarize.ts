@@ -1,4 +1,4 @@
-import type { NodeSummary } from '@figma-mcp/protocol/types';
+import type { NodeSummary } from '@figma-relay-mcp/protocol/types';
 
 export interface SummarizableNode {
   id: string;

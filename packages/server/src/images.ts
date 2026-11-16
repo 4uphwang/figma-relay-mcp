@@ -1,7 +1,7 @@
 import { readFile, stat } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import type { TemplateRow } from '@figma-mcp/protocol';
+import type { TemplateRow } from '@figma-relay-mcp/protocol';
 
 export const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 export const MAX_TOTAL_IMAGE_BYTES = 200 * 1024 * 1024;

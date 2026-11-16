@@ -1,4 +1,4 @@
-# figma-mcp Implementation Plan
+# figma-relay-mcp Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -8,14 +8,14 @@
 
 **Tech Stack:** Node 24, pnpm 10.25, TypeScript 6.0.3, zod 4.6.5, @modelcontextprotocol/server 2.3.1, ws 8.22.0, pdf-lib 1.17.1, esbuild 0.28.2, vitest 5.0.3, @figma/plugin-typings 1.141.0
 
-**Spec:** `docs/superpowers/specs/2026-10-10-figma-mcp-design.md`
+**Spec:** `docs/superpowers/specs/2026-10-10-figma-relay-mcp-design.md`
 
 ## Global Constraints
 
 - 무료(Starter) 계정만으로 동작. Dev Mode, Figma REST API, 개인 액세스 토큰을 쓰지 않는다.
 - 플러그인 manifest: `editorType: ["figma"]`, `documentAccess: "dynamic-page"`. 노드 조회는 `figma.getNodeByIdAsync`만 쓴다(동기 `getNodeById` 금지).
 - WebSocket: 서버는 `127.0.0.1`에만 바인딩, 포트 `38451`(`DEFAULT_PORT`). 연결 첫 메시지 `hello`의 토큰이 다르면 close code `4001`, 5초 안에 hello가 없으면 `4002`.
-- 토큰 파일: `~/.figma-mcp/token`(폴더 700, 파일 600). 없을 때만 만든다.
+- 토큰 파일: `~/.figma-relay-mcp/token`(폴더 700, 파일 600). 없을 때만 만든다.
 - 제한 시간: 기본 30초, `exportPdf`·`fillTemplate` 300초, `getStatus` 5초.
 - 오류 코드(이것만): `NOT_CONNECTED`, `PORT_IN_USE`, `NODE_NOT_FOUND`, `FONT_MISSING`, `IMAGE_FAILED`, `TIMEOUT`, `EXEC_ERROR`, `INVALID_ARGS`, `IO_ERROR`. 도구 실패 응답은 `{code, message, hint?}` JSON, `isError: true`.
 - PDF 기본 경로 `~/Downloads/<파일이름>-<YYYYMMDD-HHmmss>.pdf`(로컬 시각). 기존 파일은 덮어쓰지 않고 `-2`, `-3`…
@@ -28,7 +28,7 @@
 ## File Structure
 
 ```
-figma-mcp/
+figma-relay-mcp/
   package.json                 루트 스크립트(build/test/typecheck/check), 공용 devDeps
   pnpm-workspace.yaml
   tsconfig.base.json
@@ -98,7 +98,7 @@ figma-mcp/
 `package.json`:
 ```json
 {
-  "name": "figma-mcp",
+  "name": "figma-relay-mcp",
   "private": true,
   "packageManager": "pnpm@10.25.0",
   "scripts": {
@@ -153,8 +153,8 @@ dist/
 `spike/manifest.json`:
 ```json
 {
-  "name": "figma-mcp spike",
-  "id": "figma-mcp-spike",
+  "name": "figma-relay-mcp spike",
+  "id": "figma-relay-mcp-spike",
   "api": "1.0.0",
   "main": "code.js",
   "ui": "ui.html",
@@ -274,7 +274,7 @@ git commit -m "chore: workspace scaffold and Figma feasibility spike"
 
 **Interfaces:**
 - Consumes: 없음
-- Produces (`@figma-mcp/protocol`에서 import):
+- Produces (`@figma-relay-mcp/protocol`에서 import):
   - `DEFAULT_PORT = 38451`
   - `ERROR_CODES`, `type ErrorCode`, `interface WireError { code: ErrorCode; message: string; hint?: string }`
   - `HelloSchema`, `WelcomeSchema`, `RequestSchema`, `ResponseSchema`, `PluginToServerSchema`, `ServerToPluginSchema`와 타입 `Hello`, `Request`, `Response`, `PluginToServer`, `ServerToPlugin`
@@ -286,7 +286,7 @@ git commit -m "chore: workspace scaffold and Figma feasibility spike"
 `packages/protocol/package.json`:
 ```json
 {
-  "name": "@figma-mcp/protocol",
+  "name": "@figma-relay-mcp/protocol",
   "private": true,
   "type": "module",
   "exports": { ".": "./src/index.ts" },
@@ -387,7 +387,7 @@ describe('messages', () => {
 
 - [ ] **Step 3: 테스트 실패 확인**
 
-Run: `pnpm --filter @figma-mcp/protocol test`
+Run: `pnpm --filter @figma-relay-mcp/protocol test`
 Expected: FAIL — `../src`를 찾을 수 없음
 
 - [ ] **Step 4: 구현**
@@ -556,7 +556,7 @@ export * from './methods';
 
 - [ ] **Step 5: 테스트·타입 검사 통과 확인**
 
-Run: `pnpm --filter @figma-mcp/protocol test && pnpm --filter @figma-mcp/protocol typecheck`
+Run: `pnpm --filter @figma-relay-mcp/protocol test && pnpm --filter @figma-relay-mcp/protocol typecheck`
 Expected: 8 tests PASS, tsc 오류 없음
 
 - [ ] **Step 6: Commit**
@@ -590,7 +590,7 @@ git commit -m "feat(protocol): message schemas, binary frames, method types"
 `packages/server/package.json`:
 ```json
 {
-  "name": "@figma-mcp/server",
+  "name": "@figma-relay-mcp/server",
   "private": true,
   "type": "module",
   "scripts": {
@@ -599,7 +599,7 @@ git commit -m "feat(protocol): message schemas, binary frames, method types"
     "build": "node build.mjs"
   },
   "dependencies": {
-    "@figma-mcp/protocol": "workspace:*",
+    "@figma-relay-mcp/protocol": "workspace:*",
     "@modelcontextprotocol/server": "2.3.1",
     "pdf-lib": "1.17.1",
     "ws": "8.22.0",
@@ -634,7 +634,7 @@ import { loadOrCreateToken } from '../src/token';
 
 describe('loadOrCreateToken', () => {
   it('creates a token file readable only by the owner', async () => {
-    const dir = join(await mkdtemp(join(tmpdir(), 'fmcp-')), '.figma-mcp');
+    const dir = join(await mkdtemp(join(tmpdir(), 'fmcp-')), '.figma-relay-mcp');
     const token = await loadOrCreateToken(dir);
     expect(token.length).toBeGreaterThanOrEqual(32);
     expect((await readFile(join(dir, 'token'), 'utf8')).trim()).toBe(token);
@@ -706,17 +706,17 @@ describe('uniquePath', () => {
 
 - [ ] **Step 3: 테스트 실패 확인**
 
-Run: `pnpm --filter @figma-mcp/server test`
+Run: `pnpm --filter @figma-relay-mcp/server test`
 Expected: FAIL — 모듈 없음
 
 - [ ] **Step 4: 구현**
 
 `packages/server/src/errors.ts`:
 ```ts
-import type { ErrorCode } from '@figma-mcp/protocol';
+import type { ErrorCode } from '@figma-relay-mcp/protocol';
 
 export const NOT_CONNECTED_HINT =
-  'Figma 데스크톱 앱에서 메뉴 → Plugins → Development → figma-mcp를 실행하세요. 처음 연결이면 ~/.figma-mcp/token 내용을 플러그인 창에 붙여 넣으세요.';
+  'Figma 데스크톱 앱에서 메뉴 → Plugins → Development → figma-relay-mcp를 실행하세요. 처음 연결이면 ~/.figma-relay-mcp/token 내용을 플러그인 창에 붙여 넣으세요.';
 
 export class ToolError extends Error {
   constructor(
@@ -796,7 +796,7 @@ async function exists(p: string): Promise<boolean> {
 
 - [ ] **Step 5: 통과 확인**
 
-Run: `pnpm --filter @figma-mcp/server test && pnpm --filter @figma-mcp/server typecheck`
+Run: `pnpm --filter @figma-relay-mcp/server test && pnpm --filter @figma-relay-mcp/server typecheck`
 Expected: 9 tests PASS, tsc 오류 없음
 
 - [ ] **Step 6: Commit**
@@ -837,7 +837,7 @@ git commit -m "feat(server): tool errors, token file, pdf path helpers"
 
 `packages/server/test/fakePlugin.ts`:
 ```ts
-import { decodeFrame, encodeFrame, type WireError } from '@figma-mcp/protocol';
+import { decodeFrame, encodeFrame, type WireError } from '@figma-relay-mcp/protocol';
 import WebSocket from 'ws';
 
 export interface FakeReply {
@@ -1071,7 +1071,7 @@ describe('Bridge', () => {
 
 - [ ] **Step 3: 실패 확인**
 
-Run: `pnpm --filter @figma-mcp/server test -- bridge`
+Run: `pnpm --filter @figma-relay-mcp/server test -- bridge`
 Expected: FAIL — `../src/bridge` 없음
 
 - [ ] **Step 4: 구현**
@@ -1085,7 +1085,7 @@ import {
   encodeFrame,
   type MethodMap,
   type MethodName,
-} from '@figma-mcp/protocol';
+} from '@figma-relay-mcp/protocol';
 import { WebSocketServer, type RawData, type WebSocket } from 'ws';
 import { NOT_CONNECTED_HINT, ToolError } from './errors';
 
@@ -1123,7 +1123,7 @@ const portInUseError = (port: number | string) =>
   new ToolError(
     'PORT_IN_USE',
     `포트 ${port}를 다른 프로세스가 쓰고 있어 Figma와 연결할 수 없습니다`,
-    '다른 Claude 세션의 figma-mcp를 닫고 이 세션을 다시 시작하세요',
+    '다른 Claude 세션의 figma-relay-mcp를 닫고 이 세션을 다시 시작하세요',
   );
 
 export class Bridge {
@@ -1279,7 +1279,7 @@ function toBytes(data: RawData): Uint8Array {
 
 - [ ] **Step 5: 통과 확인**
 
-Run: `pnpm --filter @figma-mcp/server test && pnpm --filter @figma-mcp/server typecheck`
+Run: `pnpm --filter @figma-relay-mcp/server test && pnpm --filter @figma-relay-mcp/server typecheck`
 Expected: 모든 테스트 PASS(bridge 12개 포함), tsc 오류 없음
 
 - [ ] **Step 6: Commit**
@@ -1314,7 +1314,7 @@ git commit -m "feat(server): WebSocket bridge with sessions, binaries, timeouts"
 `packages/plugin/package.json`:
 ```json
 {
-  "name": "@figma-mcp/plugin",
+  "name": "@figma-relay-mcp/plugin",
   "private": true,
   "type": "module",
   "scripts": {
@@ -1323,7 +1323,7 @@ git commit -m "feat(server): WebSocket bridge with sessions, binaries, timeouts"
     "build": "node build.mjs"
   },
   "dependencies": {
-    "@figma-mcp/protocol": "workspace:*",
+    "@figma-relay-mcp/protocol": "workspace:*",
     "zod": "4.6.5"
   },
   "devDependencies": {
@@ -1473,14 +1473,14 @@ describe('nextDelay', () => {
 
 - [ ] **Step 3: 실패 확인**
 
-Run: `pnpm --filter @figma-mcp/plugin test`
+Run: `pnpm --filter @figma-relay-mcp/plugin test`
 Expected: FAIL — 모듈 없음
 
 - [ ] **Step 4: 구현**
 
 `packages/plugin/src/lib/errors.ts`:
 ```ts
-import type { ErrorCode, WireError } from '@figma-mcp/protocol';
+import type { ErrorCode, WireError } from '@figma-relay-mcp/protocol';
 
 export class PluginError extends Error {
   constructor(
@@ -1504,7 +1504,7 @@ export function toWireError(e: unknown): WireError {
 
 `packages/plugin/src/lib/summarize.ts`:
 ```ts
-import type { NodeSummary } from '@figma-mcp/protocol';
+import type { NodeSummary } from '@figma-relay-mcp/protocol';
 
 export interface SummarizableNode {
   id: string;
@@ -1601,7 +1601,7 @@ export function nextDelay(attempt: number): number {
 
 - [ ] **Step 5: 통과 확인**
 
-Run: `pnpm --filter @figma-mcp/plugin test && pnpm --filter @figma-mcp/plugin exec tsc -p tsconfig.ui.json`
+Run: `pnpm --filter @figma-relay-mcp/plugin test && pnpm --filter @figma-relay-mcp/plugin exec tsc -p tsconfig.ui.json`
 Expected: 13 tests PASS, tsc 오류 없음 (main 쪽 tsconfig는 Task 6에서 파일이 생긴 뒤 검사)
 
 - [ ] **Step 6: Commit**
@@ -1640,8 +1640,8 @@ git commit -m "feat(plugin): pure helpers for errors, node summaries, serializat
 `packages/plugin/manifest.json` (Task 1 결과가 `localhost`면 주소를 바꾼다):
 ```json
 {
-  "name": "figma-mcp",
-  "id": "figma-mcp-local",
+  "name": "figma-relay-mcp",
+  "id": "figma-relay-mcp-local",
   "api": "1.0.0",
   "main": "dist/code.js",
   "ui": "dist/ui.html",
@@ -1650,7 +1650,7 @@ git commit -m "feat(plugin): pure helpers for errors, node summaries, serializat
   "networkAccess": {
     "allowedDomains": ["none"],
     "devAllowedDomains": ["ws://127.0.0.1:38451"],
-    "reasoning": "Claude Code에서 실행 중인 로컬 figma-mcp 서버와만 통신합니다."
+    "reasoning": "Claude Code에서 실행 중인 로컬 figma-relay-mcp 서버와만 통신합니다."
   }
 }
 ```
@@ -1689,7 +1689,7 @@ console.log('plugin built → dist/code.js, dist/ui.html');
 
 `packages/plugin/src/bridgeTypes.ts`:
 ```ts
-import type { MethodMap, MethodName, WireError } from '@figma-mcp/protocol';
+import type { MethodMap, MethodName, WireError } from '@figma-relay-mcp/protocol';
 
 export type MainToUi =
   | { type: 'init'; token: string; fileName: string }
@@ -1826,7 +1826,7 @@ import type { MainToUi, UiToMain } from './bridgeTypes';
 import { handlers } from './handlers';
 import { PluginError, toWireError } from './lib/errors';
 
-const TOKEN_KEY = 'figma-mcp-token';
+const TOKEN_KEY = 'figma-relay-mcp-token';
 const post = (m: MainToUi) => figma.ui.postMessage(m);
 
 figma.showUI(__html__, { width: 300, height: 150, themeColors: true });
@@ -1876,7 +1876,7 @@ figma.ui.onmessage = async (msg: UiToMain) => {
   </head>
   <body>
     <div id="status" data-tone="wait">시작 중…</div>
-    <input id="token" type="password" placeholder="~/.figma-mcp/token 내용" />
+    <input id="token" type="password" placeholder="~/.figma-relay-mcp/token 내용" />
     <button id="save">토큰 저장 후 연결</button>
     <!-- SCRIPT -->
   </body>
@@ -1885,7 +1885,7 @@ figma.ui.onmessage = async (msg: UiToMain) => {
 
 `packages/plugin/src/ui/main.ts` (Task 1 결과가 `localhost`면 `WS_URL`을 바꾼다):
 ```ts
-import { DEFAULT_PORT, ServerToPluginSchema, decodeFrame, encodeFrame } from '@figma-mcp/protocol';
+import { DEFAULT_PORT, ServerToPluginSchema, decodeFrame, encodeFrame } from '@figma-relay-mcp/protocol';
 import type { MainToUi, UiToMain } from '../bridgeTypes';
 import { nextDelay } from '../lib/backoff';
 
@@ -1914,7 +1914,7 @@ function setStatus(text: string, tone: 'ok' | 'wait' | 'bad') {
 function connect() {
   window.clearTimeout(retryTimer);
   if (!token) {
-    setStatus('토큰을 붙여 넣으세요 (~/.figma-mcp/token)', 'bad');
+    setStatus('토큰을 붙여 넣으세요 (~/.figma-relay-mcp/token)', 'bad');
     return;
   }
   setStatus('연결 중…', 'wait');
@@ -1949,7 +1949,7 @@ function connect() {
     if (ws !== sock) return;
     ws = undefined;
     if (ev.code === CLOSE_BAD_TOKEN) {
-      setStatus('토큰이 틀립니다. ~/.figma-mcp/token 내용을 붙여 넣으세요', 'bad');
+      setStatus('토큰이 틀립니다. ~/.figma-relay-mcp/token 내용을 붙여 넣으세요', 'bad');
       return;
     }
     const delay = nextDelay(attempt++);
@@ -1986,7 +1986,7 @@ saveEl.onclick = () => {
 
 - [ ] **Step 4: 타입 검사와 빌드**
 
-Run: `pnpm --filter @figma-mcp/plugin typecheck && pnpm --filter @figma-mcp/plugin build`
+Run: `pnpm --filter @figma-relay-mcp/plugin typecheck && pnpm --filter @figma-relay-mcp/plugin build`
 Expected: tsc 오류 없음, `plugin built → dist/code.js, dist/ui.html`. `grep -c "<!-- SCRIPT -->" packages/plugin/dist/ui.html`가 `0`.
 
 - [ ] **Step 5: (Task 1 결과가 "eval만 가능"일 때만) compile 교체**
@@ -2162,7 +2162,7 @@ describe('read tools', () => {
 
 - [ ] **Step 2: 실패 확인**
 
-Run: `pnpm --filter @figma-mcp/server test -- result tools`
+Run: `pnpm --filter @figma-relay-mcp/server test -- result tools`
 Expected: FAIL — `../src/result`, `../src/tools` 없음
 
 - [ ] **Step 3: 구현**
@@ -2298,7 +2298,7 @@ export function buildTools(deps: ToolDeps): ToolDef[] {
 ```ts
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { DEFAULT_PORT } from '@figma-mcp/protocol';
+import { DEFAULT_PORT } from '@figma-relay-mcp/protocol';
 import { McpServer } from '@modelcontextprotocol/server';
 import { StdioServerTransport } from '@modelcontextprotocol/server/stdio';
 import { Bridge } from './bridge';
@@ -2308,14 +2308,14 @@ import { buildTools } from './tools';
 
 async function main() {
   const home = homedir();
-  const token = await loadOrCreateToken(join(home, '.figma-mcp'));
+  const token = await loadOrCreateToken(join(home, '.figma-relay-mcp'));
   const bridge = new Bridge({ token });
   bridge
     .start(DEFAULT_PORT)
-    .then((port) => console.error(`[figma-mcp] ws://127.0.0.1:${port} 대기 중`))
-    .catch((e: Error) => console.error(`[figma-mcp] WebSocket 시작 실패: ${e.message}`));
+    .then((port) => console.error(`[figma-relay-mcp] ws://127.0.0.1:${port} 대기 중`))
+    .catch((e: Error) => console.error(`[figma-relay-mcp] WebSocket 시작 실패: ${e.message}`));
 
-  const server = new McpServer({ name: 'figma-mcp', version: '0.1.0' });
+  const server = new McpServer({ name: 'figma-relay-mcp', version: '0.1.0' });
   const tools = buildTools({
     bridge,
     home,
@@ -2362,7 +2362,7 @@ console.log('server built → dist/index.cjs');
 
 - [ ] **Step 4: 통과·빌드 확인**
 
-Run: `pnpm --filter @figma-mcp/server test && pnpm --filter @figma-mcp/server typecheck && pnpm --filter @figma-mcp/server build`
+Run: `pnpm --filter @figma-relay-mcp/server test && pnpm --filter @figma-relay-mcp/server typecheck && pnpm --filter @figma-relay-mcp/server build`
 Expected: 모든 테스트 PASS, tsc 오류 없음, `server built → dist/index.cjs`.
 `registerTool` 타입이 `inputSchema: z.ZodObject`를 받지 않으면 `t.inputSchema as z.ZodObject<z.ZodRawShape>`로 맞춘다(동작은 같다).
 
@@ -2378,10 +2378,10 @@ Expected: stdout에 `"id":2` 응답과 도구 6개(`list_files` … `execute`) �
 
 1. 사용자에게 묻고 승인받은 뒤 등록:
    ```bash
-   claude mcp add figma-mcp -s user -- node ~/dev/figma-mcp/packages/server/dist/index.cjs
+   claude mcp add figma-relay-mcp -s user -- node ~/dev/figma-relay-mcp/packages/server/dist/index.cjs
    ```
-2. 사용자: Claude Code 세션을 새로 시작(MCP 서버가 뜨고 `~/.figma-mcp/token` 생성).
-3. 사용자: Figma에서 Import plugin from manifest → `packages/plugin/manifest.json` → 실행 → `~/.figma-mcp/token` 내용 붙여 넣기 → "연결됨 · <파일 이름>" 확인.
+2. 사용자: Claude Code 세션을 새로 시작(MCP 서버가 뜨고 `~/.figma-relay-mcp/token` 생성).
+3. 사용자: Figma에서 Import plugin from manifest → `packages/plugin/manifest.json` → 실행 → `~/.figma-relay-mcp/token` 내용 붙여 넣기 → "연결됨 · <파일 이름>" 확인.
 4. Claude Code에서 차례로 확인:
    - `list_files` → 파일 1개
    - `execute`로 `const f = figma.createFrame(); f.name = 'mcp-test'; f.resize(320, 200); return f;` → `{id, name, type}`
@@ -2509,7 +2509,7 @@ export async function samplePdf(sizes: [number, number][]): Promise<Uint8Array> 
 
 - [ ] **Step 2: 실패 확인**
 
-Run: `pnpm --filter @figma-mcp/server test`
+Run: `pnpm --filter @figma-relay-mcp/server test`
 Expected: FAIL — `../src/pdf` 없음, `export_pdf` 도구 없음
 
 - [ ] **Step 3: 구현**
@@ -2583,7 +2583,7 @@ export async function exportPdfToFile(
 
 - [ ] **Step 4: 통과 확인**
 
-Run: `pnpm --filter @figma-mcp/server test && pnpm --filter @figma-mcp/server typecheck`
+Run: `pnpm --filter @figma-relay-mcp/server test && pnpm --filter @figma-relay-mcp/server typecheck`
 Expected: 모든 테스트 PASS, tsc 오류 없음
 
 - [ ] **Step 5: Commit**
@@ -2636,7 +2636,7 @@ import { exportPdf } from './exportPdf';
 
 - [ ] **Step 2: 타입 검사·빌드**
 
-Run: `pnpm --filter @figma-mcp/plugin typecheck && pnpm --filter @figma-mcp/plugin build && pnpm --filter @figma-mcp/server build`
+Run: `pnpm --filter @figma-relay-mcp/plugin typecheck && pnpm --filter @figma-relay-mcp/plugin build && pnpm --filter @figma-relay-mcp/server build`
 Expected: 오류 없음
 
 - [ ] **Step 3: 2단계 실제 확인 (사용자와 함께)**
@@ -2751,7 +2751,7 @@ describe('unknownKeys', () => {
 
 - [ ] **Step 2: 실패 확인**
 
-Run: `pnpm --filter @figma-mcp/plugin test -- layout template`
+Run: `pnpm --filter @figma-relay-mcp/plugin test -- layout template`
 Expected: FAIL — 모듈 없음
 
 - [ ] **Step 3: 구현**
@@ -2774,7 +2774,7 @@ export function gridPosition(
 
 `packages/plugin/src/lib/template.ts`:
 ```ts
-import type { CellValue, TemplateRow, WarningCode } from '@figma-mcp/protocol';
+import type { CellValue, TemplateRow, WarningCode } from '@figma-relay-mcp/protocol';
 
 export type LayerKind = 'text' | 'shape' | 'other';
 
@@ -2816,7 +2816,7 @@ export function unknownKeys(row: TemplateRow, templateKeys: ReadonlySet<string>)
 
 - [ ] **Step 4: 통과 확인**
 
-Run: `pnpm --filter @figma-mcp/plugin test && pnpm --filter @figma-mcp/plugin typecheck`
+Run: `pnpm --filter @figma-relay-mcp/plugin test && pnpm --filter @figma-relay-mcp/plugin typecheck`
 Expected: 모든 테스트 PASS, tsc 오류 없음
 
 - [ ] **Step 5: Commit**
@@ -2932,7 +2932,7 @@ describe('loadImage', () => {
 
 - [ ] **Step 2: 실패 확인**
 
-Run: `pnpm --filter @figma-mcp/server test -- images`
+Run: `pnpm --filter @figma-relay-mcp/server test -- images`
 Expected: FAIL — `../src/images` 없음
 
 - [ ] **Step 3: 구현**
@@ -2942,7 +2942,7 @@ Expected: FAIL — `../src/images` 없음
 import { readFile, stat } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import type { TemplateRow } from '@figma-mcp/protocol';
+import type { TemplateRow } from '@figma-relay-mcp/protocol';
 
 export const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 const URL_RE = /^https?:\/\//i;
@@ -3009,7 +3009,7 @@ import { loadImage } from './images';
 
 - [ ] **Step 4: 통과 확인**
 
-Run: `pnpm --filter @figma-mcp/server test && pnpm --filter @figma-mcp/server typecheck`
+Run: `pnpm --filter @figma-relay-mcp/server test && pnpm --filter @figma-relay-mcp/server typecheck`
 Expected: 모든 테스트 PASS, tsc 오류 없음
 
 - [ ] **Step 5: Commit**
@@ -3100,7 +3100,7 @@ describe('fill_template', () => {
 
 - [ ] **Step 2: 실패 확인**
 
-Run: `pnpm --filter @figma-mcp/server test -- fillTemplate`
+Run: `pnpm --filter @figma-relay-mcp/server test -- fillTemplate`
 Expected: FAIL — `no tool fill_template`
 
 - [ ] **Step 3: server 도구 구현**
@@ -3146,14 +3146,14 @@ import { resolveImages } from './images';
     },
 ```
 
-Run: `pnpm --filter @figma-mcp/server test && pnpm --filter @figma-mcp/server typecheck`
+Run: `pnpm --filter @figma-relay-mcp/server test && pnpm --filter @figma-relay-mcp/server typecheck`
 Expected: 모든 테스트 PASS
 
 - [ ] **Step 4: plugin handler 구현**
 
 `packages/plugin/src/handlers/template.ts`:
 ```ts
-import type { TemplateWarning } from '@figma-mcp/protocol';
+import type { TemplateWarning } from '@figma-relay-mcp/protocol';
 import type { Handler } from '../bridgeTypes';
 import { PluginError } from '../lib/errors';
 import { GAP, gridPosition } from '../lib/layout';
@@ -3302,7 +3302,7 @@ git commit -m "feat: fill_template clones a template per row, fills text and ima
 
 `README.md`:
 ````markdown
-# figma-mcp
+# figma-relay-mcp
 
 Claude Code에서 로컬 MCP로 Figma를 다룬다. 무료 계정으로 동작한다(Dev Mode·REST API 불필요).
 
@@ -3315,16 +3315,16 @@ Claude Code에서 로컬 MCP로 Figma를 다룬다. 무료 계정으로 동작�
 ```bash
 pnpm install
 pnpm build
-claude mcp add figma-mcp -s user -- node "$(pwd)/packages/server/dist/index.cjs"
+claude mcp add figma-relay-mcp -s user -- node "$(pwd)/packages/server/dist/index.cjs"
 ```
 
-Claude Code를 새로 시작하면 서버가 뜨고 `~/.figma-mcp/token`이 생긴다.
+Claude Code를 새로 시작하면 서버가 뜨고 `~/.figma-relay-mcp/token`이 생긴다.
 
 ## Figma 연결
 
 1. Figma 데스크톱 앱 → 메뉴 → Plugins → Development → Import plugin from manifest… → `packages/plugin/manifest.json`
-2. 같은 메뉴에서 figma-mcp 실행
-3. 처음 한 번 `~/.figma-mcp/token` 내용을 플러그인 창에 붙여 넣고 "토큰 저장 후 연결"
+2. 같은 메뉴에서 figma-relay-mcp 실행
+3. 처음 한 번 `~/.figma-relay-mcp/token` 내용을 플러그인 창에 붙여 넣고 "토큰 저장 후 연결"
 4. 상태가 "연결됨 · <파일 이름>"이면 끝. 조작하는 동안 플러그인 창을 열어 둔다.
 
 ## 도구

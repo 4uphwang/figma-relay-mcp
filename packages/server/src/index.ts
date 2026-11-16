@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import { openSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, join } from 'node:path';
-import { DEFAULT_PORT } from '@figma-mcp/protocol';
+import { DEFAULT_PORT } from '@figma-relay-mcp/protocol';
 import { McpServer } from '@modelcontextprotocol/server';
 import { StdioServerTransport } from '@modelcontextprotocol/server/stdio';
 import { Hub } from './hub';
@@ -65,7 +65,7 @@ async function runStdio(token: string, home: string, dir: string) {
     spawnHub: () => spawnHub(dir),
   });
 
-  const server = new McpServer({ name: 'figma-mcp', version: '0.2.0' });
+  const server = new McpServer({ name: 'figma-relay-mcp', version: '0.2.0' });
   const tools = buildTools({
     bridge,
     home,
@@ -83,12 +83,12 @@ async function runStdio(token: string, home: string, dir: string) {
   }
   await server.connect(new StdioServerTransport());
   // Figma 플러그인이 바로 붙을 수 있게 허브를 미리 띄워 둔다. 실패는 첫 도구 호출이 알린다.
-  bridge.ready().catch((e: Error) => console.error(`[figma-mcp] 허브 연결 실패: ${e.message}`));
+  bridge.ready().catch((e: Error) => console.error(`[figma-relay-mcp] 허브 연결 실패: ${e.message}`));
 }
 
 async function main() {
   const home = homedir();
-  const dir = join(home, '.figma-mcp');
+  const dir = join(home, '.figma-relay-mcp');
   const token = await loadOrCreateToken(dir);
   if (process.argv.includes('--hub')) await runHub(token, dir, process.argv.includes('--stay'));
   else await runStdio(token, home, dir);

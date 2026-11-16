@@ -5,7 +5,7 @@ import {
   encodeFrame,
   type MethodMap,
   type MethodName,
-} from '@figma-mcp/protocol';
+} from '@figma-relay-mcp/protocol';
 import { WebSocketServer, type RawData, type WebSocket } from 'ws';
 import { NOT_CONNECTED_HINT, ToolError } from './errors';
 
@@ -47,7 +47,7 @@ const portInUseError = (port: number | string) =>
   new ToolError(
     'PORT_IN_USE',
     `포트 ${port}를 다른 프로세스가 쓰고 있어 Figma와 연결할 수 없습니다`,
-    '다른 Claude 세션의 figma-mcp를 닫고 이 세션을 다시 시작하세요',
+    '다른 Claude 세션의 figma-relay-mcp를 닫고 이 세션을 다시 시작하세요',
   );
 
 export class Bridge {

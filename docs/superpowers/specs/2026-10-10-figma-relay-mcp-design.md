@@ -1,4 +1,4 @@
-# figma-mcp 설계
+# figma-relay-mcp 설계
 
 날짜: 2026-10-10
 
@@ -53,7 +53,7 @@ Claude Code ─stdio─▶ server ─WebSocket─▶ plugin UI ─postMessage─
 ### 보안
 
 - `127.0.0.1`에만 바인딩한다.
-- 서버는 `~/.figma-mcp/token`에 토큰을 만들어 두고(없을 때만 생성, 권한 600), 연결 첫 메시지의 토큰이 다르면 끊는다. 사용자는 토큰을 플러그인 UI에 한 번 붙여 넣고, 플러그인은 `figma.clientStorage`에 저장한다.
+- 서버는 `~/.figma-relay-mcp/token`에 토큰을 만들어 두고(없을 때만 생성, 권한 600), 연결 첫 메시지의 토큰이 다르면 끊는다. 사용자는 토큰을 플러그인 UI에 한 번 붙여 넣고, 플러그인은 `figma.clientStorage`에 저장한다.
 
 ## 도구
 

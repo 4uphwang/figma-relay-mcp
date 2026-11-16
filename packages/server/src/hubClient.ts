@@ -5,7 +5,7 @@ import {
   encodeFrame,
   type MethodMap,
   type MethodName,
-} from '@figma-mcp/protocol';
+} from '@figma-relay-mcp/protocol';
 import WebSocket, { type RawData } from 'ws';
 import type { CallOptions, CallResult, SessionInfo } from './bridge';
 import { ToolError } from './errors';
@@ -35,9 +35,9 @@ type Attempt =
   | { kind: 'ok'; ws: WebSocket; build: number; sessions: SessionInfo[] }
   | { kind: 'refused' }
   | { kind: 'badToken' }
-  | { kind: 'foreign' }; // 포트는 열려 있는데 허브가 아니다(옛 버전 figma-mcp 등)
+  | { kind: 'foreign' }; // 포트는 열려 있는데 허브가 아니다(옛 버전 figma-relay-mcp 등)
 
-const HUB_HINT = 'Claude 세션을 다시 시작해 보고, 계속되면 ~/.figma-mcp/hub.log를 확인하세요';
+const HUB_HINT = 'Claude 세션을 다시 시작해 보고, 계속되면 ~/.figma-relay-mcp/hub.log를 확인하세요';
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export class HubClient {
@@ -123,13 +123,13 @@ export class HubClient {
         return a.ws;
       }
       if (a.kind === 'badToken') {
-        throw new ToolError('NOT_CONNECTED', '허브가 토큰을 거절했습니다', '~/.figma-mcp/token을 바꿨다면 허브를 다시 시작하세요(모든 Claude 세션 재시작)');
+        throw new ToolError('NOT_CONNECTED', '허브가 토큰을 거절했습니다', '~/.figma-relay-mcp/token을 바꿨다면 허브를 다시 시작하세요(모든 Claude 세션 재시작)');
       }
       if (a.kind === 'foreign') {
         throw new ToolError(
           'PORT_IN_USE',
           `포트 ${this.opts.port}를 허브가 아닌 프로세스가 쓰고 있습니다`,
-          '옛 버전 figma-mcp를 쓰는 Claude 세션을 닫거나 다시 시작하세요',
+          '옛 버전 figma-relay-mcp를 쓰는 Claude 세션을 닫거나 다시 시작하세요',
         );
       }
       if (!spawned) {
@@ -137,7 +137,7 @@ export class HubClient {
         this.opts.spawnHub();
       }
       if (Date.now() + delay > deadline) {
-        throw new ToolError('NOT_CONNECTED', 'figma-mcp 허브를 시작하지 못했습니다', HUB_HINT);
+        throw new ToolError('NOT_CONNECTED', 'figma-relay-mcp 허브를 시작하지 못했습니다', HUB_HINT);
       }
       await sleep(delay);
     }

@@ -1,5 +1,5 @@
 {
-  "name": "@figma-mcp/plugin",
+  "name": "@figma-relay-mcp/plugin",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,7 +8,7 @@
     "build": "node build.mjs"
   },
   "dependencies": {
-    "@figma-mcp/protocol": "workspace:*",
+    "@figma-relay-mcp/protocol": "workspace:*",
     "zod": "4.6.5"
   },
   "devDependencies": {

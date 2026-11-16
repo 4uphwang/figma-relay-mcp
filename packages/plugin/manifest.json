@@ -1,5 +1,5 @@
 {
-  "name": "figma-mcp",
+  "name": "figma-relay-mcp",
   "id": "figma-mcp-local",
   "api": "1.0.0",
   "main": "dist/code.js",
@@ -9,6 +9,6 @@
   "networkAccess": {
     "allowedDomains": ["none"],
     "devAllowedDomains": ["ws://localhost:38451"],
-    "reasoning": "Claude Code에서 실행 중인 로컬 figma-mcp 서버와만 통신합니다."
+    "reasoning": "Claude Code에서 실행 중인 로컬 figma-relay-mcp 서버와만 통신합니다."
   }
 }

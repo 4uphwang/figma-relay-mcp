@@ -1,4 +1,4 @@
-import { DEFAULT_PORT, ServerToPluginSchema, decodeFrame, encodeFrame } from '@figma-mcp/protocol';
+import { DEFAULT_PORT, ServerToPluginSchema, decodeFrame, encodeFrame } from '@figma-relay-mcp/protocol';
 import type { MainToUi, UiToMain } from '../bridgeTypes';
 import { nextDelay } from '../lib/backoff';
 import { HISTORY_LIMIT, type HistoryEntry, finishEntry, loadHistory, startEntry, toolName } from '../lib/history';

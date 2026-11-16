@@ -1,4 +1,4 @@
-import type { MethodMap, MethodName, WireError } from '@figma-mcp/protocol/types';
+import type { MethodMap, MethodName, WireError } from '@figma-relay-mcp/protocol/types';
 import type { HistoryEntry } from './lib/history';
 
 export type MainToUi =

@@ -1,6 +1,6 @@
 {
-  "name": "figma-mcp spike",
-  "id": "figma-mcp-spike",
+  "name": "figma-relay-mcp spike",
+  "id": "figma-relay-mcp-spike",
   "api": "1.0.0",
   "main": "code.js",
   "ui": "ui.html",

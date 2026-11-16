@@ -1,4 +1,4 @@
-import { decodeFrame, encodeFrame, type WireError } from '@figma-mcp/protocol';
+import { decodeFrame, encodeFrame, type WireError } from '@figma-relay-mcp/protocol';
 import WebSocket from 'ws';
 
 export interface FakeReply {

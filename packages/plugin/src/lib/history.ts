@@ -1,4 +1,4 @@
-import type { WireError } from '@figma-mcp/protocol/types';
+import type { WireError } from '@figma-relay-mcp/protocol/types';
 
 export const HISTORY_LIMIT = 50;
 const CODE_LIMIT = 2000;

@@ -1,5 +1,5 @@
 {
-  "name": "@figma-mcp/server",
+  "name": "@figma-relay-mcp/server",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,7 +8,7 @@
     "build": "node build.mjs"
   },
   "dependencies": {
-    "@figma-mcp/protocol": "workspace:*",
+    "@figma-relay-mcp/protocol": "workspace:*",
     "@modelcontextprotocol/server": "2.3.1",
     "pdf-lib": "1.17.1",
     "ws": "8.22.0",

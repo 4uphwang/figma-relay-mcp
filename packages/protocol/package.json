@@ -1,5 +1,5 @@
 {
-  "name": "@figma-mcp/protocol",
+  "name": "@figma-relay-mcp/protocol",
   "private": true,
   "type": "module",
   "exports": { ".": "./src/index.ts", "./types": "./src/types.ts" },

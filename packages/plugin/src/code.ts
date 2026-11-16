@@ -2,6 +2,7 @@ import type { MainToUi, UiToMain } from './bridgeTypes';
 import { handlers } from './handlers';
 import { PluginError, toWireError } from './lib/errors';
 
+// 저장 키와 manifest id는 옛 이름(figma-mcp) 그대로 둔다. 바꾸면 Figma가 다른 플러그인으로 보고 저장한 토큰·파일 ID·기록을 잃는다.
 const TOKEN_KEY = 'figma-mcp-token';
 const COLLAPSED_KEY = 'figma-mcp-collapsed';
 const FILE_ID_KEY = 'figma-mcp-file-id';

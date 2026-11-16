@@ -1,4 +1,4 @@
-import type { TemplateWarning } from '@figma-mcp/protocol/types';
+import type { TemplateWarning } from '@figma-relay-mcp/protocol/types';
 import type { Handler } from '../bridgeTypes';
 import { PluginError } from '../lib/errors';
 import { GAP, gridPosition } from '../lib/layout';

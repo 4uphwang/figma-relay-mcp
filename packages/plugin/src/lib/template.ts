@@ -1,4 +1,4 @@
-import type { CellValue, TemplateRow, WarningCode } from '@figma-mcp/protocol/types';
+import type { CellValue, TemplateRow, WarningCode } from '@figma-relay-mcp/protocol/types';
 
 export type LayerKind = 'text' | 'shape' | 'other';
 

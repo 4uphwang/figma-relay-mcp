@@ -6,7 +6,7 @@ import { loadOrCreateToken } from '../src/token';
 
 describe('loadOrCreateToken', () => {
   it('creates a token file readable only by the owner', async () => {
-    const dir = join(await mkdtemp(join(tmpdir(), 'fmcp-')), '.figma-mcp');
+    const dir = join(await mkdtemp(join(tmpdir(), 'fmcp-')), '.figma-relay-mcp');
     const token = await loadOrCreateToken(dir);
     expect(token.length).toBeGreaterThanOrEqual(32);
     expect((await readFile(join(dir, 'token'), 'utf8')).trim()).toBe(token);

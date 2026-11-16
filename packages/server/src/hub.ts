@@ -5,7 +5,7 @@ import {
   encodeFrame,
   type HubToClient,
   type MethodName,
-} from '@figma-mcp/protocol';
+} from '@figma-relay-mcp/protocol';
 import type { RawData, WebSocket } from 'ws';
 import { Bridge } from './bridge';
 import { ToolError } from './errors';

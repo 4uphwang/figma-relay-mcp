@@ -1,4 +1,4 @@
-import type { ErrorCode, WireError } from '@figma-mcp/protocol/types';
+import type { ErrorCode, WireError } from '@figma-relay-mcp/protocol/types';
 
 export class PluginError extends Error {
   constructor(
